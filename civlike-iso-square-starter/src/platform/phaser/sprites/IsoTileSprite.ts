@@ -35,14 +35,11 @@ export class IsoTileSprite extends Phaser.GameObjects.Container {
     ];
 
     // --- Create children and add them to this container ---
+    // Base terrain polygon with stroke for tile borders
     const poly = scene.add
       .polygon(0, 0, points, parseInt(terrain.color, 16))
       .setStrokeStyle(1, 0x333333);
     this.add(poly);
-
-    const outline = scene.add.image(0, 0, 'iso-tile-outline');
-    outline.setAlpha(0.1).setBlendMode(Phaser.BlendModes.NORMAL);
-    this.add(outline);
 
     this.fogOverlay = scene.add
       .polygon(0, 0, points, FOG_COLOR)

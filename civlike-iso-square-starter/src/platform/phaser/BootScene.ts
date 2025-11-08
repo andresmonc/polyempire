@@ -19,10 +19,6 @@ export class BootScene extends Phaser.Scene {
     this.load.json('map', 'data/map.sample.json');
 
     // Load placeholder textures
-    this.load.image(
-      'iso-tile-outline',
-      'assets/textures/iso-tile-outline.png',
-    );
     this.load.image('unit', 'assets/textures/unit.png');
 
     // TODO: Load font assets if you have any
