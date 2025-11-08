@@ -16,6 +16,7 @@ import { isoToWorld } from '@engine/math/iso';
  */
 export class IsoTileSprite extends Phaser.GameObjects.Container {
   private fogOverlay: Phaser.GameObjects.Polygon;
+  private baseTile: Phaser.GameObjects.GameObject;
 
   constructor(
     scene: Phaser.Scene,
@@ -34,13 +35,28 @@ export class IsoTileSprite extends Phaser.GameObjects.Container {
       { x: -TILE_W / 2, y: 0 }, // Left
     ];
 
-    // --- Create children and add them to this container ---
-    // Base terrain polygon with stroke for tile borders
-    const poly = scene.add
-      .polygon(0, 0, points, parseInt(terrain.color, 16))
-      .setStrokeStyle(1, 0x333333);
-    this.add(poly);
+    // --- Create base tile: use custom texture if available, otherwise use colored polygon ---
+    const textureKey = terrain.texture;
+    if (textureKey && scene.textures.exists(textureKey)) {
+      // Use custom image texture
+      const tileImage = scene.add.image(0, 0, textureKey);
+      tileImage.setDisplaySize(TILE_W, TILE_H);
+      this.baseTile = tileImage;
+    } else {
+      // Fallback to colored polygon
+      const poly = scene.add
+        .polygon(0, 0, points, parseInt(terrain.color, 16));
+      this.baseTile = poly;
+    }
+    this.add(this.baseTile);
 
+    // --- Add outline stroke on top ---
+    const outline = scene.add
+      .polygon(0, 0, points, 0x000000, 0) // Transparent fill
+      .setStrokeStyle(1, 0x333333);
+    this.add(outline);
+
+    // --- Fog of war overlay ---
     this.fogOverlay = scene.add
       .polygon(0, 0, points, FOG_COLOR)
       .setAlpha(FOG_ALPHA_UNREVEALED);

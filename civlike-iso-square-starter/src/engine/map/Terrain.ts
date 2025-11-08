@@ -6,7 +6,8 @@ export interface Terrain {
   name: string;
   moveCost: number; // Cost to enter a tile of this terrain. -1 for blocked.
   blocked: boolean; // Is this terrain impassable?
-  color: string; // Hex string for rendering, e.g., "0x8a9a5b"
+  color: string; // Hex string for rendering, e.g., "0x8a9a5b" (used as fallback if texture is not provided)
+  texture?: string; // Optional texture key for custom tile images (must be loaded in BootScene)
   yields: {
     // TODO: For future gameplay
     food: number;
