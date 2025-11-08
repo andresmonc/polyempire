@@ -57,6 +57,9 @@ export class Selectable {}
 
 /**
  * A tag component indicating that an entity is currently selected.
+ * Note: Currently, selection state is primarily tracked in GameState.selectedEntity
+ * for easier access. This component is maintained for potential future ECS queries
+ * (e.g., finding all selected entities via world.view(Selected)).
  */
 export class Selected {}
 

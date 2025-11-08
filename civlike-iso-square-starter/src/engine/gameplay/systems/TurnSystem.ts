@@ -30,7 +30,6 @@ export class TurnSystem extends System {
 
     if (endTurnIntent) {
       this.gameState.turn++;
-      console.log(`Turn ${this.gameState.turn}`);
 
       // Restore MP for all units
       const units = this.world.view(Unit);

@@ -24,10 +24,7 @@ export class PointerInput {
   }
 
   private handlePointerUp = (pointer: Phaser.Input.Pointer) => {
-    console.log('[PointerInput] Pointer up event fired');
-    
     if (pointer.rightButtonReleased()) {
-      console.log('[PointerInput] Right click detected');
       this.handleRightClick();
       return;
     }
@@ -38,12 +35,9 @@ export class PointerInput {
       pointer.x,
       pointer.y,
     );
-    console.log('[PointerInput] Screen point:', pointer.x, pointer.y);
-    console.log('[PointerInput] World point:', worldPoint.x, worldPoint.y);
 
     // Convert world coordinates to the logical tile coordinates
     const targetTile = worldToTile(worldPoint.x, worldPoint.y);
-    console.log('[PointerInput] Target tile:', targetTile.tx, targetTile.ty);
 
     // Check if a unit was clicked - try both tile-based and sprite-based detection
     let clickedUnit = this.findUnitAt(targetTile.tx, targetTile.ty);
@@ -52,12 +46,9 @@ export class PointerInput {
     if (clickedUnit === null) {
       clickedUnit = this.findUnitBySpriteBounds(worldPoint.x, worldPoint.y);
     }
-    
-    console.log('[PointerInput] Clicked unit:', clickedUnit);
 
     if (clickedUnit !== null) {
       // A unit was clicked, so select it
-      console.log('[PointerInput] Pushing SelectEntity intent for unit:', clickedUnit);
       this.intents.push({
         type: 'SelectEntity',
         payload: { entity: clickedUnit },
@@ -65,9 +56,7 @@ export class PointerInput {
     } else {
       // A tile was clicked. If a unit is already selected, issue a move command.
       const selectedEntity = this.gameState.selectedEntity;
-      console.log('[PointerInput] No unit clicked. Selected entity:', selectedEntity);
       if (selectedEntity !== null) {
-        console.log('[PointerInput] Pushing MoveTo intent');
         this.intents.push({
           type: 'MoveTo',
           payload: { entity: selectedEntity, target: targetTile },
@@ -93,25 +82,13 @@ export class PointerInput {
     // a spatial partitioning system (e.g., a grid mapping tile coords to entities)
     // would be much more efficient.
     const units = this.world.view(Unit, TransformTile);
-    console.log('[PointerInput] Found', units.length, 'units with Unit and TransformTile components');
-    
-    // Also check what the world position should be for tile (2, 2)
-    if (tx === 2 && ty === 2) {
-      const expectedWorld = isoToWorld(2, 2);
-      console.log('[PointerInput] Expected world position for tile (2,2):', expectedWorld);
-    }
     
     for (const entity of units) {
       const pos = this.world.getComponent(entity, TransformTile);
-      const screenPos = this.world.getComponent(entity, ScreenPos);
-      const expectedWorld = pos ? isoToWorld(pos.tx, pos.ty) : null;
-      console.log('[PointerInput] Unit', entity, 'at tile:', pos?.tx, pos?.ty, 'ScreenPos:', screenPos?.x, screenPos?.y, 'Expected world:', expectedWorld, 'looking for tile:', tx, ty);
       if (pos && pos.tx === tx && pos.ty === ty) {
-        console.log('[PointerInput] Match found! Unit', entity, 'is at clicked tile');
         return entity;
       }
     }
-    console.log('[PointerInput] No unit found at tile', tx, ty);
     return null;
   }
 
@@ -121,11 +98,11 @@ export class PointerInput {
    */
   private findUnitBySpriteBounds(worldX: number, worldY: number): Entity | null {
     // Get the GameScene to access unit sprites
-    const gameScene = this.scene as any;
-    if (!gameScene.unitSprites) {
+    if (!('unitSprites' in this.scene)) {
       return null;
     }
 
+    const gameScene = this.scene as { unitSprites: Map<Entity, Phaser.GameObjects.Sprite> };
     const units = this.world.view(Unit, TransformTile);
     const clickRadius = 32; // Allow clicking within 32 pixels of unit center
 
@@ -137,10 +114,7 @@ export class PointerInput {
       const dy = sprite.y - worldY;
       const distance = Math.sqrt(dx * dx + dy * dy);
 
-      console.log('[PointerInput] Checking sprite bounds for unit', entity, 'sprite at:', sprite.x, sprite.y, 'click at:', worldX, worldY, 'distance:', distance);
-
       if (distance < clickRadius) {
-        console.log('[PointerInput] Found unit by sprite bounds!', entity);
         return entity;
       }
     }

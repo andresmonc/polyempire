@@ -88,10 +88,10 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
       
       setSelectedUnit(unit ?? null);
 
-      // This is a bit of a hack to get map data. A better way would be a global registry.
-      const gameScene = game.scene.getScene('GameScene') as any;
-      if (transform && gameScene && gameScene.mapData) {
-        const map = gameScene.mapData as MapData;
+      // Access map data from GameScene
+      const gameScene = game.scene.getScene('GameScene');
+      if (transform && gameScene && 'mapData' in gameScene) {
+        const map = (gameScene as { mapData: MapData }).mapData;
         const terrain = map.getTerrainAt(transform.tx, transform.ty);
         setSelectedTile(terrain ?? null);
       } else {

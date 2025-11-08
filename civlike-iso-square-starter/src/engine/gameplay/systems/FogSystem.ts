@@ -20,11 +20,20 @@ export class FogSystem extends System {
   }
 
   update(_dt: number): void {
-    const turnBegan = this.intents.peek(isIntent('TurnBegan'));
+    // Pop the intent to consume it (prevents infinite recomputation)
+    const turnBegan = this.intents.pop(isIntent('TurnBegan'));
     const units = this.world.view(Unit, TransformTile, Owner);
     let needsRecompute = !!turnBegan;
 
     // Check if any unit has moved since the last check
+    // Also clean up positions for entities that no longer exist
+    const currentEntities = new Set(units);
+    for (const [entity, _] of this.lastUnitPositions.entries()) {
+      if (!currentEntities.has(entity)) {
+        this.lastUnitPositions.delete(entity);
+      }
+    }
+
     for (const entity of units) {
       const transform = this.world.getComponent(entity, TransformTile)!;
       const posKey = `${transform.tx},${transform.ty}`;

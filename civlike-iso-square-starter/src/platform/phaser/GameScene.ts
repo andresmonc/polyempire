@@ -28,11 +28,11 @@ export class GameScene extends Phaser.Scene {
   private ecsWorld!: World;
   private gameState!: GameState;
   private intentQueue!: IntentQueue;
-  private mapData!: MapData;
+  public mapData!: MapData; // Made public for HUD access
   private fogOfWar!: FogOfWar;
 
   private tileSprites = new Map<Entity, IsoTileSprite>();
-  private unitSprites = new Map<Entity, UnitSprite>();
+  public unitSprites = new Map<Entity, UnitSprite>(); // Made public for PointerInput access
   private unitsContainer!: Phaser.GameObjects.Container;
   private pathPreview!: Phaser.GameObjects.Graphics;
   private controls!: Phaser.Cameras.Controls.SmoothedKeyControl;
@@ -171,8 +171,6 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-
-
   private createInitialUnits() {
     this.unitsContainer = this.add.container(0, 0);
     this.pathPreview = this.add.graphics();
@@ -180,20 +178,16 @@ export class GameScene extends Phaser.Scene {
 
     const unitData = this.cache.json.get('units').scout;
     const startPos = this.mapData.startPos;
-    console.log('[GameScene] Creating unit at start position:', startPos.tx, startPos.ty);
 
     const scout = this.ecsWorld.createEntity();
-    console.log('[GameScene] Created entity:', scout);
     this.ecsWorld.addComponent(scout, new Components.TransformTile(startPos.tx, startPos.ty));
     this.ecsWorld.addComponent(scout, new Components.Unit(unitData.mp, unitData.mp, unitData.sightRange));
     this.ecsWorld.addComponent(scout, new Components.Owner(0)); // Player 0
     this.ecsWorld.addComponent(scout, new Components.Selectable());
-    console.log('[GameScene] Unit entity', scout, 'has Selectable:', this.ecsWorld.hasComponent(scout, Components.Selectable));
 
     const unitSprite = new UnitSprite(this, 0, 0, 'unit');
     this.unitsContainer.add(unitSprite);
     this.unitSprites.set(scout, unitSprite);
-    console.log('[GameScene] Unit sprite created and mapped to entity:', scout);
   }
 
   // --- Per-Frame Update Methods ---
