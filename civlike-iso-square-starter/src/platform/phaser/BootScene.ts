@@ -20,6 +20,7 @@ export class BootScene extends Phaser.Scene {
 
     // Load placeholder textures
     this.load.image('unit', 'assets/textures/unit.png');
+    this.load.image('tile-plains', 'assets/textures/tile-plains.png');
 
     // TODO: Load font assets if you have any
   }

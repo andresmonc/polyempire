@@ -16,6 +16,7 @@ import {
   CAMERA_ZOOM,
   PATH_COLOR,
   SELECTION_COLOR,
+  TILE_H,
 } from '@config/game';
 import { tileToWorld } from '@engine/math/iso';
 
@@ -179,16 +180,20 @@ export class GameScene extends Phaser.Scene {
 
     const unitData = this.cache.json.get('units').scout;
     const startPos = this.mapData.startPos;
+    console.log('[GameScene] Creating unit at start position:', startPos.tx, startPos.ty);
 
     const scout = this.ecsWorld.createEntity();
+    console.log('[GameScene] Created entity:', scout);
     this.ecsWorld.addComponent(scout, new Components.TransformTile(startPos.tx, startPos.ty));
     this.ecsWorld.addComponent(scout, new Components.Unit(unitData.mp, unitData.mp, unitData.sightRange));
     this.ecsWorld.addComponent(scout, new Components.Owner(0)); // Player 0
     this.ecsWorld.addComponent(scout, new Components.Selectable());
+    console.log('[GameScene] Unit entity', scout, 'has Selectable:', this.ecsWorld.hasComponent(scout, Components.Selectable));
 
     const unitSprite = new UnitSprite(this, 0, 0, 'unit');
     this.unitsContainer.add(unitSprite);
     this.unitSprites.set(scout, unitSprite);
+    console.log('[GameScene] Unit sprite created and mapped to entity:', scout);
   }
 
   // --- Per-Frame Update Methods ---
@@ -199,7 +204,30 @@ export class GameScene extends Phaser.Scene {
       const sprite = this.unitSprites.get(entity);
       const screenPos = this.ecsWorld.getComponent(entity, Components.ScreenPos)!;
       if (sprite) {
-        sprite.setPosition(screenPos.x, screenPos.y);
+        // Smoothly animate to the new position if it changed
+        const currentX = sprite.x;
+        const currentY = sprite.y;
+        const targetX = screenPos.x;
+        const targetY = screenPos.y;
+
+        // Only animate if the position actually changed
+        if (currentX !== targetX || currentY !== targetY) {
+          // Stop any existing tweens for this sprite
+          this.tweens.killTweensOf(sprite);
+
+          // Animate to the new position
+          this.tweens.add({
+            targets: sprite,
+            x: targetX,
+            y: targetY,
+            duration: 300, // 300ms animation
+            ease: 'Power2',
+            onUpdate: () => {
+              // Update depth during animation
+              sprite.setDepth(sprite.y + TILE_H);
+            },
+          });
+        }
       }
     }
   }

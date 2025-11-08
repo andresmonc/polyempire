@@ -30,31 +30,29 @@ export class MovementSystem extends System {
         continue;
       }
 
-      const budget: MovementSplit = calculateMovementBudget(
-        // The path needs to include the current position for the budget calculation
-        [transform, ...unit.path],
-        unit.mp,
-        this.mapData,
-      );
-
-      if (budget.consumedSteps.length > 0) {
-        const finalStep = budget.consumedSteps[budget.consumedSteps.length - 1];
-
-        // Move the unit to the final reachable tile for this turn
-        transform.tx = finalStep.pos.tx;
-        transform.ty = finalStep.pos.ty;
-
-        // Update the unit's remaining path and movement points
-        unit.mp = budget.remainingMp;
-        unit.path = budget.remainingPath;
-
-        // Signal that a unit has moved (for fog of war, etc.)
-        // In a more robust system, this would be an event.
-        // For now, we'll let the FogSystem query unit positions directly.
-        console.log(
-          `Unit ${entity} moved to (${transform.tx}, ${transform.ty}). MP left: ${unit.mp}`,
-        );
+      // Move one step at a time for smooth animation
+      const nextStep = unit.path[0];
+      if (!nextStep) {
+        continue;
       }
+
+      // Check if we have enough MP to move to the next tile
+      const terrain = this.mapData.getTerrainAt(nextStep.tx, nextStep.ty);
+      if (!terrain || terrain.moveCost < 0 || unit.mp < terrain.moveCost) {
+        // Can't move to this tile, clear the path
+        unit.path = [];
+        continue;
+      }
+
+      // Move to the next tile
+      transform.tx = nextStep.tx;
+      transform.ty = nextStep.ty;
+      unit.mp -= terrain.moveCost;
+      unit.path.shift(); // Remove the step we just took
+
+      console.log(
+        `Unit ${entity} moved to (${transform.tx}, ${transform.ty}). MP left: ${unit.mp}`,
+      );
     }
   }
 }
