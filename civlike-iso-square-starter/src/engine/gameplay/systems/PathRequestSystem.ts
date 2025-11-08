@@ -26,32 +26,44 @@ export class PathRequestSystem extends System {
     const intent = this.intents.pop(isIntent('MoveTo'));
     if (!intent) return;
 
+    console.log('[PathRequestSystem] Processing MoveTo intent:', intent.payload);
     const { entity, target } = intent.payload;
 
     const unit = this.world.getComponent(entity, Unit);
     const transform = this.world.getComponent(entity, TransformTile);
     const owner = this.world.getComponent(entity, Owner);
 
-    if (!unit || !transform || !owner) return;
+    console.log('[PathRequestSystem] Unit:', unit, 'Transform:', transform, 'Owner:', owner);
+
+    if (!unit || !transform || !owner) {
+      console.log('[PathRequestSystem] Missing required components');
+      return;
+    }
 
     // For now, only allow movement for player-owned units
-    if (owner.playerId !== 0) return;
+    if (owner.playerId !== 0) {
+      console.log('[PathRequestSystem] Unit not owned by player 0');
+      return;
+    }
 
     // Do not allow pathfinding to unrevealed tiles
     if (!this.fogOfWar.isRevealed(target.tx, target.ty)) {
-      console.log('Cannot move to unrevealed tile.');
+      console.log('[PathRequestSystem] Cannot move to unrevealed tile:', target.tx, target.ty);
       unit.path = []; // Clear existing path
       return;
     }
 
+    console.log('[PathRequestSystem] Finding path from', transform.tx, transform.ty, 'to', target.tx, target.ty);
     const path = findPath(transform, target, this.mapData);
 
     if (path) {
+      console.log('[PathRequestSystem] Path found with', path.length, 'steps');
       // Path includes the start point, so we remove it
       path.shift();
       unit.path = path;
+      console.log('[PathRequestSystem] Unit path set to', unit.path.length, 'steps');
     } else {
-      console.log('No path found!');
+      console.log('[PathRequestSystem] No path found!');
       unit.path = []; // Clear existing path
     }
   }
