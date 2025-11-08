@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { TILE_H } from '@config/game';
+import { TILE_H, TILE_W } from '@config/game';
 
 /**
  * A custom sprite for representing a unit on the isometric grid.
@@ -18,6 +18,10 @@ export class UnitSprite extends Phaser.GameObjects.Sprite {
     frame?: string | number,
   ) {
     super(scene, x, y, texture, frame);
+
+    // Scale the sprite so that its width is half of the tile's width.
+    // This ensures the unit visually fits within a single tile.
+    this.setScale(TILE_W / 2 / this.width);
 
     // Set the origin to the bottom-center of the sprite.
     // This makes depth sorting based on the 'y' coordinate work correctly,
