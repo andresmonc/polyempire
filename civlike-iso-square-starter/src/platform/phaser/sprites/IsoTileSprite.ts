@@ -41,7 +41,7 @@ export class IsoTileSprite extends Phaser.GameObjects.Container {
     this.add(poly);
 
     const outline = scene.add.image(0, 0, 'iso-tile-outline');
-    outline.setAlpha(0.1).setBlendMode(Phaser.BlendModes.ADD);
+    outline.setAlpha(0.1).setBlendMode(Phaser.BlendModes.NORMAL);
     this.add(outline);
 
     this.fogOverlay = scene.add
