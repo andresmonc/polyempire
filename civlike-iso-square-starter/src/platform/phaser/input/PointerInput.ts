@@ -11,12 +11,12 @@ import { Unit } from '@engine/gameplay/components';
  */
 export class PointerInput {
   constructor(
-    scene: Phaser.Scene,
+    private scene: Phaser.Scene,
     private intents: IntentQueue,
     private world: World,
     private gameState: GameState,
   ) {
-    scene.input.on(
+    this.scene.input.on(
       Phaser.Input.Events.POINTER_UP,
       this.handlePointerUp,
       this,
@@ -31,7 +31,7 @@ export class PointerInput {
 
     // Get the clicked position in world coordinates
     const worldPoint = pointer.positionToCamera(
-      this.world.scene.cameras.main,
+      this.scene.cameras.main,
     ) as Phaser.Math.Vector2;
 
     // Convert world coordinates to the logical tile coordinates

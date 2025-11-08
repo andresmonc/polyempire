@@ -79,9 +79,6 @@ export class GameScene extends Phaser.Scene {
 
     // Depth sort units after all position updates
     stableSort(this.unitsContainer.list);
-
-    // Notify the UI to re-render
-    this.game.events.emit('ui-update');
   }
 
   // --- Initialization Methods ---
@@ -145,7 +142,9 @@ export class GameScene extends Phaser.Scene {
   }
 
   private initializeSystems() {
-    this.ecsWorld.addSystem(new Systems.TurnSystem(this.intentQueue, this.gameState));
+    this.ecsWorld.addSystem(
+      new Systems.TurnSystem(this.intentQueue, this.gameState, this.game.events),
+    );
     this.ecsWorld.addSystem(new Systems.SelectionSystem(this.intentQueue, this.gameState));
     this.ecsWorld.addSystem(new Systems.PathRequestSystem(this.intentQueue, this.mapData, this.fogOfWar));
     this.ecsWorld.addSystem(new Systems.MovementSystem(this.mapData));

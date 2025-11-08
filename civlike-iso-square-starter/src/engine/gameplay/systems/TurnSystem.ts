@@ -2,6 +2,7 @@ import { System } from '@engine/ecs';
 import { GameState } from '@/state/GameState';
 import { Intent, IntentQueue, isIntent } from '@/state/IntentQueue';
 import { Unit } from '../components';
+import Phaser from 'phaser';
 
 /**
  * Manages the game's turn cycle.
@@ -11,11 +12,17 @@ import { Unit } from '../components';
 export class TurnSystem extends System {
   private intents: IntentQueue;
   private gameState: GameState;
+  private events: Phaser.Events.EventEmitter;
 
-  constructor(intents: IntentQueue, gameState: GameState) {
+  constructor(
+    intents: IntentQueue,
+    gameState: GameState,
+    events: Phaser.Events.EventEmitter,
+  ) {
     super();
     this.intents = intents;
     this.gameState = gameState;
+    this.events = events;
   }
 
   update(_dt: number): void {
@@ -34,6 +41,7 @@ export class TurnSystem extends System {
 
       // Signal that a new turn has begun
       this.intents.push({ type: 'TurnBegan' });
+      this.events.emit('ui-update');
     }
   }
 }
