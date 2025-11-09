@@ -3,7 +3,7 @@ import { worldToTile, isoToWorld } from '@engine/math/iso';
 import { GameState } from '@/state/GameState';
 import { IntentQueue } from '@/state/IntentQueue';
 import Phaser from 'phaser';
-import { Unit, TransformTile, ScreenPos } from '@engine/gameplay/components';
+import { Unit, City, TransformTile, ScreenPos } from '@engine/gameplay/components';
 
 /**
  * Handles pointer input from Phaser and translates it into game intents.
@@ -55,11 +55,22 @@ export class PointerInput {
       clickedUnit = this.findUnitBySpriteBounds(worldPoint.x, worldPoint.y);
     }
 
-    if (clickedUnit !== null) {
-      // A unit was clicked, so select it (this will exit move mode)
+    // Check if a city was clicked - try both tile-based and sprite-based detection
+    let clickedCity = this.findCityAt(targetTile.tx, targetTile.ty);
+    
+    // If no city found by tile, try checking sprite bounds
+    if (clickedCity === null) {
+      clickedCity = this.findCityBySpriteBounds(worldPoint.x, worldPoint.y);
+    }
+
+    // Prioritize units over cities if both are at the same location
+    const clickedEntity = clickedUnit ?? clickedCity;
+
+    if (clickedEntity !== null) {
+      // A unit or city was clicked, so select it (this will exit move mode)
       this.intents.push({
         type: 'SelectEntity',
-        payload: { entity: clickedUnit },
+        payload: { entity: clickedEntity },
       });
     } else {
       // An empty tile was clicked
@@ -123,6 +134,52 @@ export class PointerInput {
 
     for (const entity of units) {
       const sprite = gameScene.unitSprites.get(entity);
+      if (!sprite) continue;
+
+      const dx = sprite.x - worldX;
+      const dy = sprite.y - worldY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      if (distance < clickRadius) {
+        return entity;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Finds the first city entity located at a given tile coordinate.
+   * @returns The entity ID of the city, or null if no city is found.
+   */
+  private findCityAt(tx: number, ty: number): Entity | null {
+    const cities = this.world.view(City, TransformTile);
+    
+    for (const entity of cities) {
+      const pos = this.world.getComponent(entity, TransformTile);
+      if (pos && pos.tx === tx && pos.ty === ty) {
+        return entity;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Finds a city by checking if the world point is within any city sprite's bounds.
+   * This is a fallback for when tile-based detection fails due to coordinate issues.
+   */
+  private findCityBySpriteBounds(worldX: number, worldY: number): Entity | null {
+    // Get the GameScene to access city sprites
+    if (!('citySprites' in this.scene)) {
+      return null;
+    }
+
+    const gameScene = this.scene as { citySprites: Map<Entity, Phaser.GameObjects.Container> };
+    const cities = this.world.view(City, TransformTile);
+    const clickRadius = 40; // Allow clicking within 40 pixels of city center
+
+    for (const entity of cities) {
+      const sprite = gameScene.citySprites.get(entity);
       if (!sprite) continue;
 
       const dx = sprite.x - worldX;

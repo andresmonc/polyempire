@@ -95,6 +95,7 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
   // --- Selected Entity State ---
   const [selectedUnit, setSelectedUnit] = useState<Components.Unit | null>(null);
   const [selectedUnitType, setSelectedUnitType] = useState<string | null>(null);
+  const [selectedCity, setSelectedCity] = useState<Components.City | null>(null);
   const [selectedTile, setSelectedTile] = useState<Terrain | null>(null);
 
   useEffect(() => {
@@ -127,10 +128,12 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
     if (selectedEntity !== null) {
       const unit = ecsWorld.getComponent(selectedEntity, Components.Unit);
       const unitType = ecsWorld.getComponent(selectedEntity, Components.UnitType);
+      const city = ecsWorld.getComponent(selectedEntity, Components.City);
       const transform = ecsWorld.getComponent(selectedEntity, Components.TransformTile);
       
       setSelectedUnit(unit ?? null);
       setSelectedUnitType(unitType?.type ?? null);
+      setSelectedCity(city ?? null);
 
       // Access map data from GameScene
       const gameScene = game.scene.getScene('GameScene');
@@ -144,6 +147,7 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
     } else {
       setSelectedUnit(null);
       setSelectedUnitType(null);
+      setSelectedCity(null);
       setSelectedTile(null);
     }
   }, [gameState, ecsWorld, gameState?.selectedEntity, gameState?.moveMode, _]); // Re-run when selection, move mode, or tick changes
@@ -163,6 +167,15 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
   const handleFoundCity = () => {
     if (gameState?.selectedEntity !== null) {
       intentQueue?.push({ type: 'FoundCity', payload: { entity: gameState.selectedEntity } });
+    }
+  };
+
+  const handleProduceUnit = (unitType: string) => {
+    if (gameState?.selectedEntity !== null) {
+      intentQueue?.push({
+        type: 'ProduceUnit',
+        payload: { cityEntity: gameState.selectedEntity, unitType },
+      });
     }
   };
 
@@ -193,6 +206,30 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
             <div>Sight: {selectedUnit.sight}</div>
             <div>
               Health: {selectedUnit.health} / {selectedUnit.maxHealth}
+            </div>
+          </div>
+        )}
+
+        {selectedCity && (
+          <div style={panelStyle}>
+            <h4>Selected City</h4>
+            <div>Population: {selectedCity.population}</div>
+            <div style={{ marginTop: '10px' }}>
+              <strong>Produce Unit:</strong>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', marginTop: '5px' }}>
+                <button
+                  style={{ ...buttonStyle, fontSize: '12px', padding: '5px 10px' }}
+                  onClick={() => handleProduceUnit('settler')}
+                >
+                  Settler
+                </button>
+                <button
+                  style={{ ...buttonStyle, fontSize: '12px', padding: '5px 10px' }}
+                  onClick={() => handleProduceUnit('scout')}
+                >
+                  Scout
+                </button>
+              </div>
             </div>
           </div>
         )}

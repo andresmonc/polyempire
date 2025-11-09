@@ -38,7 +38,7 @@ export class GameScene extends Phaser.Scene {
 
   private tileSprites = new Map<Entity, IsoTileSprite>();
   public unitSprites = new Map<Entity, UnitSprite>(); // Made public for PointerInput access
-  private citySprites = new Map<Entity, CitySprite>();
+  public citySprites = new Map<Entity, CitySprite>(); // Made public for PointerInput access
   private cityBorders = new Map<Entity, Phaser.GameObjects.Graphics>();
   private unitsContainer!: Phaser.GameObjects.Container;
   private pathPreview!: Phaser.GameObjects.Graphics;
@@ -273,6 +273,13 @@ export class GameScene extends Phaser.Scene {
     this.ecsWorld.addSystem(new Systems.MovementSystem(this.mapData));
     this.ecsWorld.addSystem(new Systems.FogSystem(this.fogOfWar, this.intentQueue));
     this.ecsWorld.addSystem(new Systems.FoundCitySystem(this.intentQueue, this.gameState, this.game.events));
+    this.ecsWorld.addSystem(new Systems.ProduceUnitSystem(
+      this.intentQueue,
+      this.game.events,
+      this,
+      this.civilizationRegistry,
+      this.unitSprites,
+    ));
     this.ecsWorld.addSystem(new Systems.RenderSyncSystem()); // Must be last logic system
   }
 
