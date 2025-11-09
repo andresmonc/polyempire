@@ -10,6 +10,7 @@ import * as Components from '@engine/gameplay/components';
 import { PointerInput } from './input/PointerInput';
 import { IsoTileSprite } from './sprites/IsoTileSprite';
 import { UnitSprite } from './sprites/UnitSprite';
+import { CitySprite } from './sprites/CitySprite';
 import { stableSort } from './depthSort';
 import {
   CAMERA_SCROLL_SPEED,
@@ -17,8 +18,10 @@ import {
   PATH_COLOR,
   SELECTION_COLOR,
   TILE_H,
+  TILE_W,
 } from '@config/game';
 import { tileToWorld } from '@engine/math/iso';
+import { chebyshevDistance } from '@engine/math/grid';
 
 /**
  * The main scene where the game is rendered and played.
@@ -33,6 +36,8 @@ export class GameScene extends Phaser.Scene {
 
   private tileSprites = new Map<Entity, IsoTileSprite>();
   public unitSprites = new Map<Entity, UnitSprite>(); // Made public for PointerInput access
+  private citySprites = new Map<Entity, CitySprite>();
+  private cityBorders = new Map<Entity, Phaser.GameObjects.Graphics>();
   private unitsContainer!: Phaser.GameObjects.Container;
   private pathPreview!: Phaser.GameObjects.Graphics;
   private controls!: Phaser.Cameras.Controls.SmoothedKeyControl;
@@ -84,6 +89,8 @@ export class GameScene extends Phaser.Scene {
 
     // --- Phaser-specific Updates ---
     this.updateUnitSprites();
+    this.updateCitySprites();
+    this.updateCityBorders();
     this.updateTileSprites();
     this.updateSelectionAndPath();
 
@@ -353,6 +360,115 @@ export class GameScene extends Phaser.Scene {
         }
       }
     }
+  }
+
+  private updateCitySprites() {
+    // Clean up sprites for cities that no longer exist
+    const currentCities = new Set(this.ecsWorld.view(Components.City, Components.TransformTile));
+    for (const [entity, sprite] of this.citySprites.entries()) {
+      if (!currentCities.has(entity)) {
+        // City was destroyed, remove its sprite
+        sprite.destroy();
+        this.citySprites.delete(entity);
+      }
+    }
+
+    // Update or create sprites for existing cities
+    for (const cityEntity of currentCities) {
+      const transform = this.ecsWorld.getComponent(cityEntity, Components.TransformTile)!;
+      const screenPos = this.ecsWorld.getComponent(cityEntity, Components.ScreenPos);
+      
+      let citySprite = this.citySprites.get(cityEntity);
+      if (!citySprite) {
+        // Create new city sprite
+        const worldPos = tileToWorld(transform);
+        citySprite = new CitySprite(this, worldPos.x, worldPos.y);
+        this.add.existing(citySprite);
+        this.citySprites.set(cityEntity, citySprite);
+      } else {
+        // Update existing sprite position
+        const targetWorldPos = tileToWorld(transform);
+        citySprite.setPosition(targetWorldPos.x, targetWorldPos.y);
+        
+        // Also sync ScreenPos if it exists
+        if (screenPos) {
+          screenPos.x = targetWorldPos.x;
+          screenPos.y = targetWorldPos.y;
+        }
+      }
+    }
+  }
+
+  private updateCityBorders() {
+    const cities = this.ecsWorld.view(Components.City, Components.TransformTile);
+    
+    // Clean up borders for cities that no longer exist
+    const currentCityEntities = new Set(cities);
+    for (const [entity, border] of this.cityBorders.entries()) {
+      if (!currentCityEntities.has(entity)) {
+        border.destroy();
+        this.cityBorders.delete(entity);
+      }
+    }
+
+    // Update borders for all cities
+    for (const cityEntity of cities) {
+      const city = this.ecsWorld.getComponent(cityEntity, Components.City)!;
+      const transform = this.ecsWorld.getComponent(cityEntity, Components.TransformTile)!;
+      
+      let border = this.cityBorders.get(cityEntity);
+      if (!border) {
+        border = this.add.graphics();
+        this.cityBorders.set(cityEntity, border);
+      }
+
+      // Clear and redraw border
+      border.clear();
+      
+      // Get all tiles within the city's sight range (population)
+      const sightRange = city.getSightRange();
+      const borderTiles = this.getTilesInRange(transform.tx, transform.ty, sightRange);
+      
+      // Draw border around each tile in the city's range
+      border.lineStyle(2, 0x4169e1, 0.6); // Blue border with transparency
+      
+      for (const tile of borderTiles) {
+        const worldPos = tileToWorld(tile);
+        
+        // Draw diamond outline using lineTo
+        border.beginPath();
+        border.moveTo(worldPos.x, worldPos.y - TILE_H / 2); // Top
+        border.lineTo(worldPos.x + TILE_W / 2, worldPos.y); // Right
+        border.lineTo(worldPos.x, worldPos.y + TILE_H / 2); // Bottom
+        border.lineTo(worldPos.x - TILE_W / 2, worldPos.y); // Left
+        border.closePath();
+        border.strokePath();
+      }
+      
+      // Set depth to be above tiles but below units
+      const cityWorldPos = tileToWorld(transform);
+      border.setDepth(cityWorldPos.y + TILE_H / 4);
+    }
+  }
+
+  /**
+   * Gets all tiles within a Chebyshev distance range from a center point.
+   */
+  private getTilesInRange(centerTx: number, centerTy: number, range: number): Array<{ tx: number; ty: number }> {
+    const tiles: Array<{ tx: number; ty: number }> = [];
+    const dimensions = this.mapData.getDimensions();
+    
+    for (let tx = centerTx - range; tx <= centerTx + range; tx++) {
+      for (let ty = centerTy - range; ty <= centerTy + range; ty++) {
+        if (chebyshevDistance({ tx, ty }, { tx: centerTx, ty: centerTy }) <= range) {
+          if (tx >= 0 && tx < dimensions.width && ty >= 0 && ty < dimensions.height) {
+            tiles.push({ tx, ty });
+          }
+        }
+      }
+    }
+    
+    return tiles;
   }
 
   private updateTileSprites() {
