@@ -56,20 +56,27 @@ export class PointerInput {
     }
 
     if (clickedUnit !== null) {
-      // A unit was clicked, so select it
+      // A unit was clicked, so select it (this will exit move mode)
       this.intents.push({
         type: 'SelectEntity',
         payload: { entity: clickedUnit },
       });
     } else {
-      // A tile was clicked. If a unit is already selected, issue a move command.
-      const selectedEntity = this.gameState.selectedEntity;
-      if (selectedEntity !== null) {
+      // An empty tile was clicked
+      if (this.gameState.moveMode && this.gameState.selectedEntity !== null) {
+        // In move mode - issue move command
         this.intents.push({
           type: 'MoveTo',
-          payload: { entity: selectedEntity, target: targetTile },
+          payload: { entity: this.gameState.selectedEntity, target: targetTile },
+        });
+      } else if (this.gameState.selectedEntity !== null) {
+        // Not in move mode but unit is selected - deselect it
+        this.intents.push({
+          type: 'SelectEntity',
+          payload: { entity: null },
         });
       }
+      // If nothing is selected, clicking empty tile does nothing
     }
   };
 

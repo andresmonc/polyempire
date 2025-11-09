@@ -28,6 +28,14 @@ export interface EndTurnIntent {
   type: 'EndTurn';
 }
 
+export interface EnterMoveModeIntent {
+  type: 'EnterMoveMode';
+}
+
+export interface CancelMoveModeIntent {
+  type: 'CancelMoveMode';
+}
+
 /**
  * An internal event triggered by the TurnSystem.
  */
@@ -41,6 +49,8 @@ export type Intent =
   | SelectEntityIntent
   | MoveToIntent
   | EndTurnIntent
+  | EnterMoveModeIntent
+  | CancelMoveModeIntent
   | TurnBeganIntent;
 
 // --- Type Guard for checking intent types ---

@@ -1,5 +1,6 @@
 export * from './FogSystem';
 export * from './MovementSystem';
+export * from './MoveModeSystem';
 export * from './PathRequestSystem';
 export * from './RenderSyncSystem';
 export * from './SelectionSystem';

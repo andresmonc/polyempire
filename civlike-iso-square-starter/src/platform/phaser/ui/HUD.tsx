@@ -45,6 +45,47 @@ const panelStyle: React.CSSProperties = {
   marginTop: '5px',
 };
 
+const commandMenuStyle: React.CSSProperties = {
+  position: 'absolute',
+  bottom: '20px',
+  left: '50%',
+  transform: 'translateX(-50%)',
+  display: 'flex',
+  gap: '10px',
+  backgroundColor: 'rgba(0, 0, 0, 0.8)',
+  padding: '15px 20px',
+  borderRadius: '8px',
+  border: '1px solid #444',
+  fontFamily: 'sans-serif',
+  pointerEvents: 'all',
+};
+
+const commandButtonStyle: React.CSSProperties = {
+  backgroundColor: '#4a5568',
+  color: 'white',
+  borderWidth: '1px',
+  borderStyle: 'solid',
+  borderColor: '#718096',
+  padding: '12px 20px',
+  borderRadius: '5px',
+  cursor: 'pointer',
+  textAlign: 'center',
+  fontSize: '14px',
+  fontWeight: '500',
+  minWidth: '100px',
+  transition: 'background-color 0.2s',
+};
+
+const commandButtonActiveStyle: React.CSSProperties = {
+  ...commandButtonStyle,
+  backgroundColor: '#2d3748',
+  borderColor: '#4a5568',
+};
+
+const commandButtonHoverStyle: React.CSSProperties = {
+  backgroundColor: '#5a6578',
+};
+
 export const HUD: React.FC<HUDProps> = ({ game }) => {
   const [intentQueue, setIntentQueue] = useState<IntentQueue | null>(null);
   const [gameState, setGameState] = useState<GameState | null>(null);
@@ -101,42 +142,94 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
       setSelectedUnit(null);
       setSelectedTile(null);
     }
-  }, [gameState, ecsWorld, gameState?.selectedEntity, _]); // Re-run when selection or tick changes
+  }, [gameState, ecsWorld, gameState?.selectedEntity, gameState?.moveMode, _]); // Re-run when selection, move mode, or tick changes
 
   const handleEndTurn = () => {
     intentQueue?.push({ type: 'EndTurn' });
+  };
+
+  const handleMove = () => {
+    intentQueue?.push({ type: 'EnterMoveMode' });
+  };
+
+  const handleCancelMove = () => {
+    intentQueue?.push({ type: 'CancelMoveMode' });
   };
 
   if (!gameState) {
     return null; // Don't render anything until the game is ready
   }
 
+  const isMoveMode = gameState.moveMode;
+  const hasSelection = gameState.selectedEntity !== null;
+
   return (
-    <div style={hudStyle}>
-      <div>
-        <strong>Turn: {gameState.turn}</strong>
-      </div>
-      <button style={buttonStyle} onClick={handleEndTurn}>
-        End Turn
-      </button>
+    <>
+      {/* Left side HUD */}
+      <div style={hudStyle}>
+        <div>
+          <strong>Turn: {gameState.turn}</strong>
+        </div>
+        <button style={buttonStyle} onClick={handleEndTurn}>
+          End Turn
+        </button>
 
-      {selectedUnit && (
-        <div style={panelStyle}>
-          <h4>Selected Unit</h4>
-          <div>
-            Movement: {selectedUnit.mp} / {selectedUnit.maxMp}
+        {selectedUnit && (
+          <div style={panelStyle}>
+            <h4>Selected Unit</h4>
+            <div>
+              Movement: {selectedUnit.mp} / {selectedUnit.maxMp}
+            </div>
+            <div>Sight: {selectedUnit.sight}</div>
           </div>
-          <div>Sight: {selectedUnit.sight}</div>
-        </div>
-      )}
+        )}
 
-      {selectedTile && (
-        <div style={panelStyle}>
-          <h4>Selected Tile</h4>
-          <div>Terrain: {selectedTile.name}</div>
-          <div>Move Cost: {selectedTile.moveCost > 0 ? selectedTile.moveCost : 'N/A'}</div>
+        {selectedTile && (
+          <div style={panelStyle}>
+            <h4>Selected Tile</h4>
+            <div>Terrain: {selectedTile.name}</div>
+            <div>Move Cost: {selectedTile.moveCost > 0 ? selectedTile.moveCost : 'N/A'}</div>
+          </div>
+        )}
+      </div>
+
+      {/* Command Menu at bottom center */}
+      {hasSelection && (
+        <div style={commandMenuStyle}>
+          {selectedUnit && (
+            <>
+              {!isMoveMode ? (
+                <button
+                  style={commandButtonStyle}
+                  onClick={handleMove}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = commandButtonHoverStyle.backgroundColor;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = commandButtonStyle.backgroundColor;
+                  }}
+                >
+                  Move
+                </button>
+              ) : (
+                <button
+                  style={commandButtonActiveStyle}
+                  onClick={handleCancelMove}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = commandButtonHoverStyle.backgroundColor;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = commandButtonActiveStyle.backgroundColor;
+                  }}
+                >
+                  Cancel
+                </button>
+              )}
+            </>
+          )}
+          {/* Future: Add commands for tiles, buildings, etc. */}
         </div>
       )}
-    </div>
+    </>
   );
 };

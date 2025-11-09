@@ -8,4 +8,5 @@ import { Entity } from '@engine/ecs';
 export class GameState {
   public turn = 1;
   public selectedEntity: Entity | null = null;
+  public moveMode = false; // When true, clicking a tile will move the selected unit
 }
