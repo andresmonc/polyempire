@@ -78,3 +78,32 @@ export class Selected {}
 export class Owner {
   constructor(public playerId: number) {}
 }
+
+/**
+ * Represents a city with population and growth mechanics.
+ * Population determines the city's sight range for fog of war.
+ * Growth uses a backoff mechanism: 1->2 takes 2 turns, 2->3 takes 4 turns, etc.
+ */
+export class City {
+  constructor(
+    public population: number = 1, // Current population
+    public growthProgress: number = 0, // Turns accumulated toward next growth
+    public turnsUntilGrowth: number = 2, // Turns needed to grow (doubles each growth)
+  ) {}
+
+  /**
+   * Gets the sight range for this city based on population.
+   * For now, sight range equals population.
+   */
+  getSightRange(): number {
+    return this.population;
+  }
+
+  /**
+   * Calculates the turns needed to grow from current population to next.
+   * Growth backoff: 1->2: 2 turns, 2->3: 4 turns, 3->4: 8 turns, etc.
+   */
+  static getTurnsUntilGrowth(population: number): number {
+    return Math.pow(2, population);
+  }
+}

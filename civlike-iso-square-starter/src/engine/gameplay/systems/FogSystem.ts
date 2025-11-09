@@ -1,17 +1,18 @@
 import { System } from '@engine/ecs';
 import { FogOfWar } from '@engine/map/FogOfWar';
 import { IntentQueue, isIntent } from '@/state/IntentQueue';
-import { Owner, TransformTile, Unit } from '../components';
+import { Owner, TransformTile, Unit, City } from '../components';
 
 /**
  * Manages Fog of War updates.
  * It listens for `TurnBegan` intents or detects unit movement, then triggers
- * a recomputation of the visible tiles.
+ * a recomputation of the visible tiles. Also includes cities in fog computation.
  */
 export class FogSystem extends System {
   private fogOfWar: FogOfWar;
   private intents: IntentQueue;
   private lastUnitPositions = new Map<number, string>();
+  private lastCityPopulations = new Map<number, number>();
 
   constructor(fogOfWar: FogOfWar, intents: IntentQueue) {
     super();
@@ -23,6 +24,7 @@ export class FogSystem extends System {
     // Pop the intent to consume it (prevents infinite recomputation)
     const turnBegan = this.intents.pop(isIntent('TurnBegan'));
     const units = this.world.view(Unit, TransformTile, Owner);
+    const cities = this.world.view(City, TransformTile, Owner);
     let needsRecompute = !!turnBegan;
 
     // Check if any unit has moved since the last check
@@ -43,6 +45,23 @@ export class FogSystem extends System {
       }
     }
 
+    // Check if any city's population has changed (which affects sight range)
+    const currentCityEntities = new Set(cities);
+    for (const [entity, _] of this.lastCityPopulations.entries()) {
+      if (!currentCityEntities.has(entity)) {
+        this.lastCityPopulations.delete(entity);
+      }
+    }
+
+    for (const cityEntity of cities) {
+      const city = this.world.getComponent(cityEntity, City)!;
+      const lastPop = this.lastCityPopulations.get(cityEntity);
+      if (lastPop === undefined || lastPop !== city.population) {
+        needsRecompute = true;
+        this.lastCityPopulations.set(cityEntity, city.population);
+      }
+    }
+
     if (needsRecompute) {
       const playerUnits = units
         .map(entity => ({
@@ -53,8 +72,18 @@ export class FogSystem extends System {
         }))
         .filter(u => u.owner.playerId === 0); // TODO: Support multiple players/AI
 
+      const playerCities = cities
+        .map(entity => ({
+          entity,
+          owner: this.world.getComponent(entity, Owner)!,
+          city: this.world.getComponent(entity, City)!,
+          pos: this.world.getComponent(entity, TransformTile)!,
+        }))
+        .filter(c => c.owner.playerId === 0); // TODO: Support multiple players/AI
+
       this.fogOfWar.recompute(
         playerUnits.map(u => ({ pos: u.pos, sight: u.unit.sight })),
+        playerCities.map(c => ({ pos: c.pos, sight: c.city.getSightRange() })),
       );
     }
   }

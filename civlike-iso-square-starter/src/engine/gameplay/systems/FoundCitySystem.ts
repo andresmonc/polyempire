@@ -40,9 +40,27 @@ export class FoundCitySystem extends System {
       return;
     }
 
-    // TODO: Create a city entity at this location
-    // For now, just log and deselect the unit
-    console.log(`Founding city at (${transform.tx}, ${transform.ty})`);
+    // Get the settler's owner
+    const owner = this.world.getComponent(entity, Components.Owner);
+    if (!owner) {
+      console.warn('FoundCity intent received for unit without Owner');
+      return;
+    }
+
+    // Create a city entity at this location
+    const city = this.world.createEntity();
+    this.world.addComponent(city, new Components.TransformTile(transform.tx, transform.ty));
+    this.world.addComponent(city, new Components.City(1, 0, 2)); // Start with population 1, 0 progress, 2 turns until growth
+    this.world.addComponent(city, new Components.Owner(owner.playerId));
+    this.world.addComponent(city, new Components.Selectable());
+    
+    // Create ScreenPos for the city (for potential future rendering)
+    const screenPos = this.world.getComponent(entity, Components.ScreenPos);
+    if (screenPos) {
+      this.world.addComponent(city, new Components.ScreenPos(screenPos.x, screenPos.y));
+    }
+    
+    console.log(`City founded at (${transform.tx}, ${transform.ty}) with population 1`);
     
     // Destroy the settler (it's consumed when founding a city)
     this.world.destroyEntity(entity);

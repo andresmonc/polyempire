@@ -48,11 +48,16 @@ export class FogOfWar {
   }
 
   /**
-   * Recomputes the `visible` grid based on a set of unit positions and their sight ranges.
-   * This should be called at the start of a turn and after any unit moves.
+   * Recomputes the `visible` grid based on a set of unit positions and their sight ranges,
+   * and optionally city positions and their sight ranges.
+   * This should be called at the start of a turn and after any unit moves or cities grow.
    * @param units - An array of objects containing unit positions and sight ranges.
+   * @param cities - An optional array of objects containing city positions and sight ranges.
    */
-  public recompute(units: { pos: TilePoint; sight: number }[]) {
+  public recompute(
+    units: { pos: TilePoint; sight: number }[],
+    cities?: { pos: TilePoint; sight: number }[],
+  ) {
     this.newlyVisible = [];
     const tileCount = this.width * this.height;
     const nextVisible = new Array(tileCount).fill(false);
@@ -61,10 +66,21 @@ export class FogOfWar {
       const tx = i % this.width;
       const ty = Math.floor(i / this.width);
 
+      // Check units
       for (const unit of units) {
         if (chebyshevDistance({ tx, ty }, unit.pos) <= unit.sight) {
           nextVisible[i] = true;
           break; // No need to check other units for this tile
+        }
+      }
+
+      // Check cities if provided
+      if (!nextVisible[i] && cities) {
+        for (const city of cities) {
+          if (chebyshevDistance({ tx, ty }, city.pos) <= city.sight) {
+            nextVisible[i] = true;
+            break; // No need to check other cities for this tile
+          }
         }
       }
     }
