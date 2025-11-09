@@ -21,6 +21,11 @@ export class BootScene extends Phaser.Scene {
     // Load placeholder textures
     this.load.image('unit', 'assets/textures/unit.png');
     this.load.image('tile-plains', 'assets/textures/tile-plains.png');
+    
+    // Try to load city texture (will fallback to icon if not found)
+    // Add your city texture at 'assets/textures/city.png' to use it
+    // If the file doesn't exist, CitySprite will automatically use the icon fallback
+    this.load.image('city', 'assets/textures/city.png');
 
     // TODO: Load font assets if you have any
   }

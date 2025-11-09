@@ -380,9 +380,9 @@ export class GameScene extends Phaser.Scene {
       
       let citySprite = this.citySprites.get(cityEntity);
       if (!citySprite) {
-        // Create new city sprite
+        // Create new city sprite (try to load 'city' texture, fallback to icon)
         const worldPos = tileToWorld(transform);
-        citySprite = new CitySprite(this, worldPos.x, worldPos.y);
+        citySprite = new CitySprite(this, worldPos.x, worldPos.y, 'city');
         this.add.existing(citySprite);
         this.citySprites.set(cityEntity, citySprite);
       } else {
