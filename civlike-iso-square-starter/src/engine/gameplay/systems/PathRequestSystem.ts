@@ -54,6 +54,12 @@ export class PathRequestSystem extends System {
       return;
     }
 
+    // Early return if clicking on the same tile
+    if (transform.tx === target.tx && transform.ty === target.ty) {
+      unit.path = [];
+      return;
+    }
+
     const path = findPath(transform, target, this.mapData);
 
     if (path) {

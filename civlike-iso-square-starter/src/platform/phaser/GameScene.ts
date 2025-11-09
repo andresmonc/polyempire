@@ -79,7 +79,9 @@ export class GameScene extends Phaser.Scene {
     this.updateSelectionAndPath();
 
     // Depth sort units after all position updates
-    stableSort(this.unitsContainer.list);
+    // Note: Units are now directly in scene, not container, so we sort the unit sprites
+    const unitSpriteList = Array.from(this.unitSprites.values());
+    stableSort(unitSpriteList);
   }
 
   // --- Initialization Methods ---
@@ -185,42 +187,49 @@ export class GameScene extends Phaser.Scene {
     this.ecsWorld.addComponent(scout, new Components.Owner(0)); // Player 0
     this.ecsWorld.addComponent(scout, new Components.Selectable());
 
-    const unitSprite = new UnitSprite(this, 0, 0, 'unit');
-    this.unitsContainer.add(unitSprite);
+    // Create ScreenPos immediately so sprite can be positioned correctly
+    const initialWorldPos = tileToWorld(startPos);
+    this.ecsWorld.addComponent(scout, new Components.ScreenPos(initialWorldPos.x, initialWorldPos.y));
+
+    // Add sprite directly to scene, not container, to avoid positioning issues
+    const unitSprite = new UnitSprite(this, initialWorldPos.x, initialWorldPos.y, 'unit');
+    this.add.existing(unitSprite);
     this.unitSprites.set(scout, unitSprite);
   }
 
   // --- Per-Frame Update Methods ---
 
   private updateUnitSprites() {
-    const entities = this.ecsWorld.view(Components.Unit, Components.ScreenPos);
+    const entities = this.ecsWorld.view(Components.Unit, Components.TransformTile);
     for (const entity of entities) {
       const sprite = this.unitSprites.get(entity);
-      const screenPos = this.ecsWorld.getComponent(entity, Components.ScreenPos)!;
+      const transform = this.ecsWorld.getComponent(entity, Components.TransformTile)!;
+      const screenPos = this.ecsWorld.getComponent(entity, Components.ScreenPos);
+      
       if (sprite) {
-        // Smoothly animate to the new position if it changed
+        // Calculate target position directly from TransformTile to ensure it's always correct
+        const targetWorldPos = tileToWorld(transform);
+        const targetX = targetWorldPos.x;
+        const targetY = targetWorldPos.y;
+        
+        // Get current sprite position (world coordinates since sprite is directly in scene)
         const currentX = sprite.x;
         const currentY = sprite.y;
-        const targetX = screenPos.x;
-        const targetY = screenPos.y;
 
-        // Only animate if the position actually changed
-        if (currentX !== targetX || currentY !== targetY) {
-          // Stop any existing tweens for this sprite
+        // Always update position immediately - no animation for now to debug
+        if (Math.abs(currentX - targetX) > 0.01 || Math.abs(currentY - targetY) > 0.01) {
+          // Stop any existing tweens
           this.tweens.killTweensOf(sprite);
-
-          // Animate to the new position
-          this.tweens.add({
-            targets: sprite,
-            x: targetX,
-            y: targetY,
-            duration: 300, // 300ms animation
-            ease: 'Power2',
-            onUpdate: () => {
-              // Update depth during animation
-              sprite.setDepth(sprite.y + TILE_H);
-            },
-          });
+          
+          // Set position immediately
+          sprite.setPosition(targetX, targetY);
+          sprite.setDepth(targetY + TILE_H);
+        }
+        
+        // Also sync ScreenPos if it exists (for other systems that might use it)
+        if (screenPos) {
+          screenPos.x = targetX;
+          screenPos.y = targetY;
         }
       }
     }

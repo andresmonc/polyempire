@@ -40,6 +40,12 @@ export class MovementSystem extends System {
         continue;
       }
 
+      // Check if we're already at the next step (shouldn't happen, but handle it)
+      if (transform.tx === nextStep.tx && transform.ty === nextStep.ty) {
+        unit.path.shift();
+        continue;
+      }
+
       // Check if we have enough MP to move to the next tile
       const terrain = this.mapData.getTerrainAt(nextStep.tx, nextStep.ty);
       if (!terrain) {

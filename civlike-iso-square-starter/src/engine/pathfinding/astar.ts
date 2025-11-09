@@ -84,7 +84,7 @@ export function findPath(
       }
 
       const terrain = mapData.getTerrainAt(neighborPos.tx, neighborPos.ty);
-      if (!terrain || terrain.blocked) {
+      if (!terrain || terrain.blocked || terrain.moveCost < 0) {
         continue;
       }
 
