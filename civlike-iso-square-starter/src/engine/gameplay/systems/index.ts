@@ -1,4 +1,5 @@
 export * from './FogSystem';
+export * from './FoundCitySystem';
 export * from './MovementSystem';
 export * from './MoveModeSystem';
 export * from './PathRequestSystem';

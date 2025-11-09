@@ -259,6 +259,7 @@ export class GameScene extends Phaser.Scene {
     this.ecsWorld.addSystem(new Systems.PathRequestSystem(this.intentQueue, this.mapData, this.fogOfWar, this.gameState, this.game.events));
     this.ecsWorld.addSystem(new Systems.MovementSystem(this.mapData));
     this.ecsWorld.addSystem(new Systems.FogSystem(this.fogOfWar, this.intentQueue));
+    this.ecsWorld.addSystem(new Systems.FoundCitySystem(this.intentQueue, this.gameState, this.game.events));
     this.ecsWorld.addSystem(new Systems.RenderSyncSystem()); // Must be last logic system
   }
 
@@ -285,30 +286,41 @@ export class GameScene extends Phaser.Scene {
     this.pathPreview = this.add.graphics();
     this.unitsContainer.add(this.pathPreview);
 
-    const unitData = this.cache.json.get('units').scout;
+    const unitData = this.cache.json.get('units').settler;
     const startPos = this.mapData.startPos;
 
-    const scout = this.ecsWorld.createEntity();
-    this.ecsWorld.addComponent(scout, new Components.TransformTile(startPos.tx, startPos.ty));
-    this.ecsWorld.addComponent(scout, new Components.Unit(unitData.mp, unitData.mp, unitData.sightRange));
-    this.ecsWorld.addComponent(scout, new Components.Owner(0)); // Player 0
-    this.ecsWorld.addComponent(scout, new Components.Selectable());
+    const settler = this.ecsWorld.createEntity();
+    this.ecsWorld.addComponent(settler, new Components.TransformTile(startPos.tx, startPos.ty));
+    this.ecsWorld.addComponent(settler, new Components.Unit(unitData.mp, unitData.mp, unitData.sightRange));
+    this.ecsWorld.addComponent(settler, new Components.UnitType('settler'));
+    this.ecsWorld.addComponent(settler, new Components.Owner(0)); // Player 0
+    this.ecsWorld.addComponent(settler, new Components.Selectable());
 
     // Create ScreenPos immediately so sprite can be positioned correctly
     const initialWorldPos = tileToWorld(startPos);
-    this.ecsWorld.addComponent(scout, new Components.ScreenPos(initialWorldPos.x, initialWorldPos.y));
+    this.ecsWorld.addComponent(settler, new Components.ScreenPos(initialWorldPos.x, initialWorldPos.y));
 
     // Add sprite directly to scene, not container, to avoid positioning issues
     const unitSprite = new UnitSprite(this, initialWorldPos.x, initialWorldPos.y, 'unit');
     this.add.existing(unitSprite);
-    this.unitSprites.set(scout, unitSprite);
+    this.unitSprites.set(settler, unitSprite);
   }
 
   // --- Per-Frame Update Methods ---
 
   private updateUnitSprites() {
-    const entities = this.ecsWorld.view(Components.Unit, Components.TransformTile);
-    for (const entity of entities) {
+    // Clean up sprites for entities that no longer exist
+    const currentEntities = new Set(this.ecsWorld.view(Components.Unit, Components.TransformTile));
+    for (const [entity, sprite] of this.unitSprites.entries()) {
+      if (!currentEntities.has(entity)) {
+        // Entity was destroyed, remove its sprite
+        sprite.destroy();
+        this.unitSprites.delete(entity);
+      }
+    }
+
+    // Update sprites for existing entities
+    for (const entity of currentEntities) {
       const sprite = this.unitSprites.get(entity);
       const transform = this.ecsWorld.getComponent(entity, Components.TransformTile)!;
       const screenPos = this.ecsWorld.getComponent(entity, Components.ScreenPos);

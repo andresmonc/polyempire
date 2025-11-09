@@ -94,6 +94,7 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
 
   // --- Selected Entity State ---
   const [selectedUnit, setSelectedUnit] = useState<Components.Unit | null>(null);
+  const [selectedUnitType, setSelectedUnitType] = useState<string | null>(null);
   const [selectedTile, setSelectedTile] = useState<Terrain | null>(null);
 
   useEffect(() => {
@@ -125,9 +126,11 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
     const { selectedEntity } = gameState;
     if (selectedEntity !== null) {
       const unit = ecsWorld.getComponent(selectedEntity, Components.Unit);
+      const unitType = ecsWorld.getComponent(selectedEntity, Components.UnitType);
       const transform = ecsWorld.getComponent(selectedEntity, Components.TransformTile);
       
       setSelectedUnit(unit ?? null);
+      setSelectedUnitType(unitType?.type ?? null);
 
       // Access map data from GameScene
       const gameScene = game.scene.getScene('GameScene');
@@ -140,6 +143,7 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
       }
     } else {
       setSelectedUnit(null);
+      setSelectedUnitType(null);
       setSelectedTile(null);
     }
   }, [gameState, ecsWorld, gameState?.selectedEntity, gameState?.moveMode, _]); // Re-run when selection, move mode, or tick changes
@@ -154,6 +158,12 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
 
   const handleCancelMove = () => {
     intentQueue?.push({ type: 'CancelMoveMode' });
+  };
+
+  const handleFoundCity = () => {
+    if (gameState?.selectedEntity !== null) {
+      intentQueue?.push({ type: 'FoundCity', payload: { entity: gameState.selectedEntity } });
+    }
   };
 
   if (!gameState) {
@@ -199,18 +209,34 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
           {selectedUnit && (
             <>
               {!isMoveMode ? (
-                <button
-                  style={commandButtonStyle}
-                  onClick={handleMove}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = commandButtonHoverStyle.backgroundColor;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = commandButtonStyle.backgroundColor;
-                  }}
-                >
-                  Move
-                </button>
+                <>
+                  <button
+                    style={commandButtonStyle}
+                    onClick={handleMove}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = commandButtonHoverStyle.backgroundColor;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = commandButtonStyle.backgroundColor;
+                    }}
+                  >
+                    Move
+                  </button>
+                  {selectedUnitType === 'settler' && (
+                    <button
+                      style={commandButtonStyle}
+                      onClick={handleFoundCity}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = commandButtonHoverStyle.backgroundColor;
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = commandButtonStyle.backgroundColor;
+                      }}
+                    >
+                      Found City
+                    </button>
+                  )}
+                </>
               ) : (
                 <button
                   style={commandButtonActiveStyle}

@@ -39,6 +39,14 @@ export class Unit {
   ) {}
 }
 
+/**
+ * Identifies the type of unit (e.g., 'scout', 'settler', 'warrior').
+ * Used to determine available actions and capabilities.
+ */
+export class UnitType {
+  constructor(public type: string) {}
+}
+
 // --- Tile-specific Components ---
 
 /**

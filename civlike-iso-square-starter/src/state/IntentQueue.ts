@@ -36,6 +36,11 @@ export interface CancelMoveModeIntent {
   type: 'CancelMoveMode';
 }
 
+export interface FoundCityIntent {
+  type: 'FoundCity';
+  payload: { entity: Entity };
+}
+
 /**
  * An internal event triggered by the TurnSystem.
  */
@@ -51,6 +56,7 @@ export type Intent =
   | EndTurnIntent
   | EnterMoveModeIntent
   | CancelMoveModeIntent
+  | FoundCityIntent
   | TurnBeganIntent;
 
 // --- Type Guard for checking intent types ---
