@@ -1,13 +1,14 @@
 import { System } from '@engine/ecs';
 import { GameState } from '@/state/GameState';
 import { Intent, IntentQueue, isIntent } from '@/state/IntentQueue';
-import { Unit } from '../components';
+import { Unit, NewlyPurchased } from '../components';
 import Phaser from 'phaser';
 
 /**
  * Manages the game's turn cycle.
  * When an `EndTurn` intent is received, it increments the turn counter
  * and restores movement points for all units.
+ * Also removes NewlyPurchased component so units can act on the next turn.
  */
 export class TurnSystem extends System {
   private intents: IntentQueue;
@@ -36,6 +37,12 @@ export class TurnSystem extends System {
       for (const entity of units) {
         const unit = this.world.getComponent(entity, Unit)!;
         unit.mp = unit.maxMp;
+      }
+
+      // Remove NewlyPurchased component from all units so they can act next turn
+      const newlyPurchasedUnits = this.world.view(NewlyPurchased);
+      for (const entity of newlyPurchasedUnits) {
+        this.world.removeComponent(entity, NewlyPurchased);
       }
 
       // Signal that a new turn has begun

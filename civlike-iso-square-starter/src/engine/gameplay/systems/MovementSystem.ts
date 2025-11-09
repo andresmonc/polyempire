@@ -4,7 +4,7 @@ import {
   calculateMovementBudget,
   MovementSplit,
 } from '@engine/pathfinding/movementBudget';
-import { TransformTile, Unit } from '../components';
+import { TransformTile, Unit, NewlyPurchased } from '../components';
 
 /**
  * Handles the step-by-step movement of units along their calculated paths.
@@ -25,6 +25,12 @@ export class MovementSystem extends System {
     for (const entity of movingEntities) {
       const unit = this.world.getComponent(entity, Unit)!;
       const transform = this.world.getComponent(entity, TransformTile)!;
+
+      // Prevent newly purchased units from moving
+      if (this.world.hasComponent(entity, NewlyPurchased)) {
+        unit.path = []; // Clear any path
+        continue;
+      }
 
       if (unit.path.length === 0) {
         continue;

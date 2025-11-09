@@ -1,5 +1,6 @@
 import { System } from '@engine/ecs';
 import { IntentQueue, isIntent } from '@/state/IntentQueue';
+import { GameState } from '@/state/GameState';
 import * as Components from '../components';
 import { logger } from '@/utils/logger';
 import Phaser from 'phaser';
@@ -11,17 +12,26 @@ import Phaser from 'phaser';
 export class BuildingYieldSystem extends System {
   private intents: IntentQueue;
   private events: Phaser.Events.EventEmitter;
+  private gameState: GameState;
+  private lastProcessedTurn: number = -1;
 
-  constructor(intents: IntentQueue, events: Phaser.Events.EventEmitter) {
+  constructor(intents: IntentQueue, events: Phaser.Events.EventEmitter, gameState: GameState) {
     super();
     this.intents = intents;
     this.events = events;
+    this.gameState = gameState;
   }
 
   update(_dt: number): void {
-    // Process building yields at the start of each turn
     const turnBegan = this.intents.peek(isIntent('TurnBegan'));
-    if (!turnBegan) return;
+    if (!turnBegan) {
+      this.lastProcessedTurn = -1;
+      return;
+    }
+
+    if (this.lastProcessedTurn === this.gameState.turn) {
+      return;
+    }
 
     // Get all buildings
     const buildings = this.world.view(Components.Building, Components.TransformTile);
@@ -67,21 +77,16 @@ export class BuildingYieldSystem extends System {
         }
       }
 
-      // Apply yields to city resources
       if (totalFood > 0 || totalProduction > 0 || totalGold > 0) {
         resources.add(totalFood, totalProduction, totalGold);
-        logger.debug(
-          `City received ${totalFood} food, ${totalProduction} production, ${totalGold} gold from buildings`,
-        );
       }
 
-      // Apply population growth bonus (reduces turns until growth)
       if (totalPopulationGrowth > 0) {
-        // Reduce growth progress needed (bonus applies as percentage reduction)
         city.growthProgress += totalPopulationGrowth;
-        logger.debug(`City received ${totalPopulationGrowth} population growth bonus from buildings`);
       }
     }
+
+    this.lastProcessedTurn = this.gameState.turn;
 
     this.events.emit('ui-update');
   }

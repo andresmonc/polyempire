@@ -78,6 +78,16 @@ export class GameScene extends Phaser.Scene {
       this.createBotUnits(data.bots);
     }
 
+    // Initialize civilizations for initial units to ensure production starts accruing from turn 1
+    const initialUnits = this.ecsWorld.view(Components.Unit, Components.Owner, Components.CivilizationComponent);
+    for (const unitEntity of initialUnits) {
+      const owner = this.ecsWorld.getComponent(unitEntity, Components.Owner);
+      const civ = this.ecsWorld.getComponent(unitEntity, Components.CivilizationComponent);
+      if (owner && this.gameState.isCurrentPlayer(owner.playerId) && civ) {
+        this.civilizationProductionSystem.initializeCivilization(civ.civId);
+      }
+    }
+
     // Initial fog computation
     this.intentQueue.push({ type: 'TurnBegan' });
 
@@ -278,19 +288,28 @@ export class GameScene extends Phaser.Scene {
     );
     this.ecsWorld.addSystem(new Systems.SelectionSystem(this.intentQueue, this.gameState, this.game.events));
     this.ecsWorld.addSystem(new Systems.CityGrowthSystem(this.intentQueue));
+    // Yield and production systems must run before FogSystem (which consumes TurnBegan)
+    this.ecsWorld.addSystem(
+      new Systems.YieldSystem(this.intentQueue, this.game.events, this.mapData, this.gameState),
+    );
+    this.ecsWorld.addSystem(new Systems.BuildingYieldSystem(
+      this.intentQueue,
+      this.game.events,
+      this.gameState,
+    ));
+    this.civilizationProductionSystem = new Systems.CivilizationProductionSystem(
+      this.intentQueue,
+      this.game.events,
+      this.civilizationRegistry,
+      this.gameState,
+    );
+    this.ecsWorld.addSystem(this.civilizationProductionSystem);
     this.ecsWorld.addSystem(new Systems.MoveModeSystem(this.intentQueue, this.gameState, this.game.events));
     this.ecsWorld.addSystem(new Systems.PathRequestSystem(this.intentQueue, this.mapData, this.fogOfWar, this.gameState, this.game.events));
     this.ecsWorld.addSystem(new Systems.MovementSystem(this.mapData));
     this.ecsWorld.addSystem(new Systems.FogSystem(this.fogOfWar, this.intentQueue, this.gameState));
     this.ecsWorld.addSystem(new Systems.FoundCitySystem(this.intentQueue, this.gameState, this.game.events));
     this.ecsWorld.addSystem(new Systems.CombatSystem(this.intentQueue, this.game.events, this));
-    this.ecsWorld.addSystem(new Systems.YieldSystem(this.intentQueue, this.game.events, this.mapData));
-    this.civilizationProductionSystem = new Systems.CivilizationProductionSystem(
-      this.intentQueue,
-      this.game.events,
-      this.civilizationRegistry,
-    );
-    this.ecsWorld.addSystem(this.civilizationProductionSystem);
     this.ecsWorld.addSystem(new Systems.ProductionSystem(
       this.intentQueue,
       this.game.events,
@@ -305,21 +324,22 @@ export class GameScene extends Phaser.Scene {
       this.game.events,
       this,
       this.gameState,
+      this.civilizationProductionSystem,
+      this.civilizationRegistry,
+      this.unitSprites,
     ));
     this.ecsWorld.addSystem(new Systems.ProduceBuildingSystem(
       this.intentQueue,
       this.game.events,
       this,
       this.gameState,
+      this.civilizationProductionSystem,
+      this.mapData,
     ));
     this.ecsWorld.addSystem(new Systems.BuildBuildingSystem(
       this.intentQueue,
       this.game.events,
       this,
-    ));
-    this.ecsWorld.addSystem(new Systems.BuildingYieldSystem(
-      this.intentQueue,
-      this.game.events,
     ));
     this.ecsWorld.addSystem(new Systems.RenderSyncSystem()); // Must be last logic system
   }

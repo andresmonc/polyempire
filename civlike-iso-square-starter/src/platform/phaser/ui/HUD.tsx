@@ -7,6 +7,7 @@ import * as Components from '@engine/gameplay/components';
 import { MapData } from '@engine/map/MapData';
 import { Terrain } from '@engine/map/Terrain';
 import { CityYieldsCalculator, CityYields } from '@/utils/cityYields';
+import { DEFAULT_CIVILIZATION_ID } from '@config/game';
 
 interface HUDProps {
   game: Phaser.Game;
@@ -142,6 +143,8 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
   
   // --- Civilization Total Yields ---
   const [totalYields, setTotalYields] = useState<CityYields>({ food: 0, production: 0, gold: 0 });
+  const [availableProduction, setAvailableProduction] = useState<number>(0);
+  const [startingProductionPerTurn, setStartingProductionPerTurn] = useState<number>(0);
 
   useEffect(() => {
     const handleGameReady = (data: {
@@ -239,6 +242,43 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
         const map = (gameScene as { mapData: MapData }).mapData;
         const total = CityYieldsCalculator.calculateTotalYields(ecsWorld, map, gameState.currentPlayerId);
         setTotalYields(total);
+        
+        // Get available production from CivilizationProductionSystem
+        if ('civilizationProductionSystem' in gameScene && 'civilizationRegistry' in gameScene) {
+          const civProductionSystem = (gameScene as { civilizationProductionSystem: any }).civilizationProductionSystem;
+          const civRegistry = (gameScene as { civilizationRegistry: any }).civilizationRegistry;
+          // Get the current player's civilization ID
+          // First try to get it from cities
+          const cities = ecsWorld.view(Components.City, Components.Owner, Components.CivilizationComponent);
+          let playerCivId = DEFAULT_CIVILIZATION_ID; // Default
+          for (const cityEntity of cities) {
+            const owner = ecsWorld.getComponent(cityEntity, Components.Owner);
+            const civ = ecsWorld.getComponent(cityEntity, Components.CivilizationComponent);
+            if (owner && owner.playerId === gameState.currentPlayerId && civ) {
+              playerCivId = civ.civId;
+              break;
+            }
+          }
+          // If no cities found, try to get it from units
+          if (playerCivId === DEFAULT_CIVILIZATION_ID) {
+            const units = ecsWorld.view(Components.Unit, Components.Owner, Components.CivilizationComponent);
+            for (const unitEntity of units) {
+              const owner = ecsWorld.getComponent(unitEntity, Components.Owner);
+              const civ = ecsWorld.getComponent(unitEntity, Components.CivilizationComponent);
+              if (owner && owner.playerId === gameState.currentPlayerId && civ) {
+                playerCivId = civ.civId;
+                break;
+              }
+            }
+          }
+          const production = civProductionSystem.getProduction(playerCivId);
+          setAvailableProduction(production);
+          
+          // Get starting production per turn for this civilization
+          const civ = civRegistry.get(playerCivId);
+          const startingProd = civ?.startingProduction || 0;
+          setStartingProductionPerTurn(startingProd);
+        }
       }
     }
   }, [gameState, ecsWorld, gameState?.selectedEntity, gameState?.moveMode, _, game]); // Re-run when selection, move mode, tick, or game changes
@@ -296,11 +336,15 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
         </div>
         <div style={yieldItemStyle}>
           <span style={yieldLabelStyle}>Production:</span>
-          <span style={yieldValueStyle}>+{totalYields.production.toFixed(1)}</span>
+          <span style={yieldValueStyle}>+{(totalYields.production + startingProductionPerTurn).toFixed(1)}</span>
         </div>
         <div style={yieldItemStyle}>
           <span style={yieldLabelStyle}>Gold:</span>
           <span style={yieldValueStyle}>+{totalYields.gold.toFixed(1)}</span>
+        </div>
+        <div style={yieldItemStyle}>
+          <span style={yieldLabelStyle}>Available Production:</span>
+          <span style={yieldValueStyle}>{availableProduction.toFixed(0)}</span>
         </div>
       </div>
 

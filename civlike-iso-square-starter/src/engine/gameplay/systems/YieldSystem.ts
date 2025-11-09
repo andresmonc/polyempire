@@ -1,5 +1,6 @@
 import { System } from '@engine/ecs';
 import { IntentQueue, isIntent } from '@/state/IntentQueue';
+import { GameState } from '@/state/GameState';
 import * as Components from '../components';
 import { MapData } from '@engine/map/MapData';
 import { RESOURCES } from '@config/game';
@@ -15,18 +16,27 @@ export class YieldSystem extends System {
   private intents: IntentQueue;
   private events: Phaser.Events.EventEmitter;
   private mapData: MapData;
+  private gameState: GameState;
+  private lastProcessedTurn: number = -1;
 
-  constructor(intents: IntentQueue, events: Phaser.Events.EventEmitter, mapData: MapData) {
+  constructor(intents: IntentQueue, events: Phaser.Events.EventEmitter, mapData: MapData, gameState: GameState) {
     super();
     this.intents = intents;
     this.events = events;
     this.mapData = mapData;
+    this.gameState = gameState;
   }
 
   update(_dt: number): void {
-    // Process yields at the start of each turn
     const turnBegan = this.intents.peek(isIntent('TurnBegan'));
-    if (!turnBegan) return;
+    if (!turnBegan) {
+      this.lastProcessedTurn = -1;
+      return;
+    }
+
+    if (this.lastProcessedTurn === this.gameState.turn) {
+      return;
+    }
 
     // Process all cities
     const cities = this.world.view(Components.City, Components.TransformTile, Components.Resources);
@@ -44,13 +54,10 @@ export class YieldSystem extends System {
       yields.production += RESOURCES.CITY_BASE_PRODUCTION;
       yields.gold += RESOURCES.CITY_BASE_GOLD;
 
-      // Add yields to city resources
       resources.add(yields.food, yields.production, yields.gold);
-
-      logger.debug(
-        `City at (${transform.tx}, ${transform.ty}) collected: ${yields.food} food, ${yields.production} production, ${yields.gold} gold`,
-      );
     }
+
+    this.lastProcessedTurn = this.gameState.turn;
 
     this.events.emit('ui-update');
   }

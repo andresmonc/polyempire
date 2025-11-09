@@ -3,7 +3,7 @@ import { MapData } from '@engine/map/MapData';
 import { findPath } from '@engine/pathfinding/astar';
 import { IntentQueue, isIntent } from '@/state/IntentQueue';
 import { GameState } from '@/state/GameState';
-import { Owner, TransformTile, Unit } from '../components';
+import { Owner, TransformTile, Unit, NewlyPurchased } from '../components';
 import { FogOfWar } from '@engine/map/FogOfWar';
 import { isTileInBounds } from '@engine/math/grid';
 import Phaser from 'phaser';
@@ -45,6 +45,12 @@ export class PathRequestSystem extends System {
 
     // Only allow movement for units owned by the current active player
     if (!this.gameState.isCurrentPlayer(owner.playerId)) {
+      return;
+    }
+
+    // Prevent newly purchased units from moving
+    if (this.world.hasComponent(entity, NewlyPurchased)) {
+      unit.path = []; // Clear any existing path
       return;
     }
 

@@ -52,6 +52,12 @@ export class UnitType {
   constructor(public type: string) {}
 }
 
+/**
+ * A tag component indicating that a unit was just purchased this turn.
+ * Units with this component cannot move or act until the next turn.
+ */
+export class NewlyPurchased {}
+
 // --- Tile-specific Components ---
 
 /**
