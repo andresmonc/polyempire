@@ -48,12 +48,6 @@ export class PathRequestSystem extends System {
       return;
     }
 
-    // Do not allow pathfinding to unrevealed tiles
-    if (!this.fogOfWar.isRevealed(target.tx, target.ty)) {
-      unit.path = []; // Clear existing path
-      return;
-    }
-
     // Early return if clicking on the same tile
     if (transform.tx === target.tx && transform.ty === target.ty) {
       unit.path = [];
