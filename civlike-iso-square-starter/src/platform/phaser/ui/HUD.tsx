@@ -96,6 +96,8 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
   const [selectedUnit, setSelectedUnit] = useState<Components.Unit | null>(null);
   const [selectedUnitType, setSelectedUnitType] = useState<string | null>(null);
   const [selectedCity, setSelectedCity] = useState<Components.City | null>(null);
+  const [selectedCityResources, setSelectedCityResources] = useState<Components.Resources | null>(null);
+  const [selectedCityQueue, setSelectedCityQueue] = useState<Components.ProductionQueue | null>(null);
   const [selectedTile, setSelectedTile] = useState<Terrain | null>(null);
 
   useEffect(() => {
@@ -129,11 +131,15 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
       const unit = ecsWorld.getComponent(selectedEntity, Components.Unit);
       const unitType = ecsWorld.getComponent(selectedEntity, Components.UnitType);
       const city = ecsWorld.getComponent(selectedEntity, Components.City);
+      const cityResources = ecsWorld.getComponent(selectedEntity, Components.Resources);
+      const cityQueue = ecsWorld.getComponent(selectedEntity, Components.ProductionQueue);
       const transform = ecsWorld.getComponent(selectedEntity, Components.TransformTile);
       
       setSelectedUnit(unit ?? null);
       setSelectedUnitType(unitType?.type ?? null);
       setSelectedCity(city ?? null);
+      setSelectedCityResources(cityResources ?? null);
+      setSelectedCityQueue(cityQueue ?? null);
 
       // Access map data from GameScene
       const gameScene = game.scene.getScene('GameScene');
@@ -148,6 +154,8 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
       setSelectedUnit(null);
       setSelectedUnitType(null);
       setSelectedCity(null);
+      setSelectedCityResources(null);
+      setSelectedCityQueue(null);
       setSelectedTile(null);
     }
   }, [gameState, ecsWorld, gameState?.selectedEntity, gameState?.moveMode, _]); // Re-run when selection, move mode, or tick changes
@@ -220,6 +228,54 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
           <div style={panelStyle}>
             <h4>Selected City</h4>
             <div>Population: {selectedCity.population}</div>
+            
+            {selectedCityResources && (
+              <div style={{ marginTop: '10px' }}>
+                <strong>Resources:</strong>
+                <div>Food: {selectedCityResources.food.toFixed(1)}</div>
+                <div>Production: {selectedCityResources.production.toFixed(1)}</div>
+                <div>Gold: {selectedCityResources.gold.toFixed(1)}</div>
+              </div>
+            )}
+
+            {selectedCityQueue && (
+              <div style={{ marginTop: '10px' }}>
+                <strong>Production:</strong>
+                {selectedCityQueue.isEmpty() ? (
+                  <div style={{ fontStyle: 'italic', color: '#aaa' }}>No production</div>
+                ) : (
+                  <>
+                    {selectedCityQueue.queue.map((item, index) => {
+                      const isCurrent = index === 0;
+                      const progress = isCurrent ? selectedCityQueue.currentProgress : 0;
+                      const progressPercent = isCurrent ? (progress / item.cost) * 100 : 0;
+                      
+                      return (
+                        <div
+                          key={index}
+                          style={{
+                            marginTop: '5px',
+                            padding: '5px',
+                            backgroundColor: isCurrent ? 'rgba(255, 255, 0, 0.2)' : 'transparent',
+                            borderRadius: '3px',
+                          }}
+                        >
+                          <div>
+                            {item.name} ({item.cost} prod)
+                            {isCurrent && (
+                              <div style={{ fontSize: '11px', color: '#aaa' }}>
+                                {progress.toFixed(0)}/{item.cost} ({progressPercent.toFixed(0)}%)
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
+              </div>
+            )}
+
             <div style={{ marginTop: '10px' }}>
               <strong>Produce Unit:</strong>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', marginTop: '5px' }}>
@@ -227,13 +283,13 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
                   style={{ ...buttonStyle, fontSize: '12px', padding: '5px 10px' }}
                   onClick={() => handleProduceUnit('settler')}
                 >
-                  Settler
+                  Settler (50)
                 </button>
                 <button
                   style={{ ...buttonStyle, fontSize: '12px', padding: '5px 10px' }}
                   onClick={() => handleProduceUnit('scout')}
                 >
-                  Scout
+                  Scout (30)
                 </button>
               </div>
             </div>

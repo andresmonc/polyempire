@@ -120,3 +120,90 @@ export class City {
     return Math.pow(2, population);
   }
 }
+
+/**
+ * Represents a city's resource stockpile.
+ */
+export class Resources {
+  constructor(
+    public food: number = 0, // Food stockpile
+    public production: number = 0, // Production stockpile
+    public gold: number = 0, // Gold stockpile
+  ) {}
+
+  /**
+   * Adds resources to the stockpile.
+   */
+  add(food: number, production: number, gold: number): void {
+    this.food += food;
+    this.production += production;
+    this.gold += gold;
+  }
+
+  /**
+   * Checks if the city has enough resources for a cost.
+   */
+  canAfford(cost: { food?: number; production?: number; gold?: number }): boolean {
+    return (
+      (cost.food === undefined || this.food >= cost.food) &&
+      (cost.production === undefined || this.production >= cost.production) &&
+      (cost.gold === undefined || this.gold >= cost.gold)
+    );
+  }
+
+  /**
+   * Spends resources (assumes canAfford was checked first).
+   */
+  spend(cost: { food?: number; production?: number; gold?: number }): void {
+    if (cost.food !== undefined) this.food -= cost.food;
+    if (cost.production !== undefined) this.production -= cost.production;
+    if (cost.gold !== undefined) this.gold -= cost.gold;
+  }
+}
+
+/**
+ * Represents a production queue item.
+ */
+export interface ProductionItem {
+  type: 'unit' | 'building';
+  name: string; // e.g., 'settler', 'scout', 'granary'
+  cost: number; // Production cost
+}
+
+/**
+ * Represents a city's production queue.
+ */
+export class ProductionQueue {
+  constructor(
+    public queue: ProductionItem[] = [], // Items in the queue
+    public currentProgress: number = 0, // Progress on current item
+  ) {}
+
+  /**
+   * Gets the current item being produced, or null if queue is empty.
+   */
+  getCurrent(): ProductionItem | null {
+    return this.queue.length > 0 ? this.queue[0] : null;
+  }
+
+  /**
+   * Adds an item to the end of the queue.
+   */
+  enqueue(item: ProductionItem): void {
+    this.queue.push(item);
+  }
+
+  /**
+   * Removes the current item from the queue (when completed).
+   */
+  dequeue(): ProductionItem | null {
+    return this.queue.shift() ?? null;
+  }
+
+  /**
+   * Checks if the queue is empty.
+   */
+  isEmpty(): boolean {
+    return this.queue.length === 0;
+  }
+}

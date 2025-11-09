@@ -44,3 +44,15 @@ export const COMBAT = {
   DAMAGE_NUMBER_COLOR: 0xff0000, // Red color for damage numbers
   DAMAGE_NUMBER_FONT_SIZE: '24px',
 };
+
+// --- Resource & Production Settings ---
+export const RESOURCES = {
+  // Base yields per population (each population can work one tile)
+  TILES_PER_POPULATION: 1, // How many tiles each population point can work
+  // City base yields (yields from the city tile itself)
+  CITY_BASE_FOOD: 2, // Base food from city center
+  CITY_BASE_PRODUCTION: 1, // Base production from city center
+  CITY_BASE_GOLD: 0, // Base gold from city center
+  // Food required for city growth
+  FOOD_PER_POPULATION: 20, // Food needed per population point (for growth)
+};

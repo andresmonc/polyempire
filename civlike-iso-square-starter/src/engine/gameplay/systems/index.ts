@@ -6,6 +6,8 @@ export * from './MovementSystem';
 export * from './MoveModeSystem';
 export * from './PathRequestSystem';
 export * from './ProduceUnitSystem';
+export * from './ProductionSystem';
 export * from './RenderSyncSystem';
 export * from './SelectionSystem';
 export * from './TurnSystem';
+export * from './YieldSystem';

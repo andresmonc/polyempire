@@ -274,12 +274,18 @@ export class GameScene extends Phaser.Scene {
     this.ecsWorld.addSystem(new Systems.FogSystem(this.fogOfWar, this.intentQueue));
     this.ecsWorld.addSystem(new Systems.FoundCitySystem(this.intentQueue, this.gameState, this.game.events));
     this.ecsWorld.addSystem(new Systems.CombatSystem(this.intentQueue, this.game.events, this));
-    this.ecsWorld.addSystem(new Systems.ProduceUnitSystem(
+    this.ecsWorld.addSystem(new Systems.YieldSystem(this.intentQueue, this.game.events, this.mapData));
+    this.ecsWorld.addSystem(new Systems.ProductionSystem(
       this.intentQueue,
       this.game.events,
       this,
       this.civilizationRegistry,
       this.unitSprites,
+    ));
+    this.ecsWorld.addSystem(new Systems.ProduceUnitSystem(
+      this.intentQueue,
+      this.game.events,
+      this,
     ));
     this.ecsWorld.addSystem(new Systems.RenderSyncSystem()); // Must be last logic system
   }

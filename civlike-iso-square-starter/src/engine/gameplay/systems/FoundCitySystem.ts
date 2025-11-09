@@ -55,6 +55,8 @@ export class FoundCitySystem extends System {
     this.world.addComponent(city, new Components.TransformTile(transform.tx, transform.ty));
     this.world.addComponent(city, new Components.City(1, 0, 2)); // Start with population 1, 0 progress, 2 turns until growth
     this.world.addComponent(city, new Components.Owner(owner.playerId));
+    this.world.addComponent(city, new Components.Resources(0, 0, 0)); // Start with no resources
+    this.world.addComponent(city, new Components.ProductionQueue()); // Empty production queue
     if (civilization) {
       this.world.addComponent(city, new Components.CivilizationComponent(civilization.civId));
     }
