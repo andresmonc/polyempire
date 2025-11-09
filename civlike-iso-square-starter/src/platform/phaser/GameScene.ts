@@ -57,7 +57,7 @@ export class GameScene extends Phaser.Scene {
     super('GameScene');
   }
 
-  create() {
+  create(data?: { selectedCivId?: string }) {
     // --- Initialization ---
     this.initializeState();
     this.initializeMap();
@@ -67,7 +67,7 @@ export class GameScene extends Phaser.Scene {
 
     // --- World Creation ---
     this.createTileEntities();
-    this.createInitialUnits();
+    this.createInitialUnits(data?.selectedCivId || 'romans');
 
     // Initial fog computation
     this.intentQueue.push({ type: 'TurnBegan' });
@@ -294,13 +294,13 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private createInitialUnits() {
+  private createInitialUnits(selectedCivId: string = 'romans') {
     this.unitsContainer = this.add.container(0, 0);
     this.pathPreview = this.add.graphics();
     this.unitsContainer.add(this.pathPreview);
 
     const startPos = this.mapData.startPos;
-    const civId = 'romans'; // Default civilization for player 0
+    const civId = selectedCivId;
     const civilization = this.civilizationRegistry.get(civId);
 
     // Get base unit data and apply civilization overrides
