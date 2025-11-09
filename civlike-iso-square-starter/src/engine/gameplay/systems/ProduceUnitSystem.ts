@@ -1,5 +1,6 @@
 import { System } from '@engine/ecs';
 import { IntentQueue, isIntent } from '@/state/IntentQueue';
+import { HUMAN_PLAYER_ID } from '@config/game';
 import * as Components from '../components';
 import { UnitsData } from '@/utils/unitFactory';
 import { logger } from '@/utils/logger';
@@ -28,10 +29,15 @@ export class ProduceUnitSystem extends System {
 
     const { cityEntity, unitType } = produceUnit.payload;
 
-    // Verify the entity is a city
+    // Verify the entity is a city and owned by the human player
     const city = this.world.getComponent(cityEntity, Components.City);
+    const owner = this.world.getComponent(cityEntity, Components.Owner);
     if (!city) {
       logger.warn('ProduceUnit intent received for non-city entity');
+      return;
+    }
+    if (!owner || owner.playerId !== HUMAN_PLAYER_ID) {
+      logger.warn('ProduceUnit intent received for city not owned by human player');
       return;
     }
 

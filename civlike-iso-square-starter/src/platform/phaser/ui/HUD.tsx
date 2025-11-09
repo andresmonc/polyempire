@@ -171,6 +171,20 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
 
     const { selectedEntity } = gameState;
     if (selectedEntity !== null) {
+      // Check if the selected entity is owned by the human player
+      const owner = ecsWorld.getComponent(selectedEntity, Components.Owner);
+      if (!owner || owner.playerId !== 0) {
+        // Not owned by human player - clear all selection UI
+        setSelectedUnit(null);
+        setSelectedUnitType(null);
+        setSelectedCity(null);
+        setSelectedCityResources(null);
+        setSelectedCityQueue(null);
+        setSelectedCityYields(null);
+        setSelectedTile(null);
+        return;
+      }
+
       const unit = ecsWorld.getComponent(selectedEntity, Components.Unit);
       const unitType = ecsWorld.getComponent(selectedEntity, Components.UnitType);
       const city = ecsWorld.getComponent(selectedEntity, Components.City);
