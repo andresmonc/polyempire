@@ -61,7 +61,7 @@ export class GameScene extends Phaser.Scene {
     super('GameScene');
   }
 
-  create(data?: { selectedCivId?: string }) {
+  create(data?: { selectedCivId?: string; bots?: Array<{ civId: string; playerId: number }> }) {
     // --- Initialization ---
     this.initializeState();
     this.initializeMap();
@@ -72,6 +72,11 @@ export class GameScene extends Phaser.Scene {
     // --- World Creation ---
     this.createTileEntities();
     this.createInitialUnits(data?.selectedCivId || DEFAULT_CIVILIZATION_ID);
+    
+    // Create bot units
+    if (data?.bots && data.bots.length > 0) {
+      this.createBotUnits(data.bots);
+    }
 
     // Initial fog computation
     this.intentQueue.push({ type: 'TurnBegan' });
@@ -355,6 +360,83 @@ export class GameScene extends Phaser.Scene {
     if (!settler) {
       throw new Error('Failed to create initial settler unit');
     }
+  }
+
+  /**
+   * Creates bot units at random valid positions on the map.
+   */
+  private createBotUnits(bots: Array<{ civId: string; playerId: number }>) {
+    const unitFactory = new UnitFactory(
+      this.ecsWorld,
+      this,
+      this.civilizationRegistry,
+      this.unitSprites,
+    );
+
+    // Get all valid spawn positions (not blocked, not water, not too close to player start)
+    const validPositions = this.getValidSpawnPositions();
+    
+    if (validPositions.length < bots.length) {
+      console.warn(`Not enough valid spawn positions for ${bots.length} bots. Only spawning ${validPositions.length} bots.`);
+    }
+
+    // Shuffle positions to randomize
+    const shuffledPositions = [...validPositions].sort(() => Math.random() - 0.5);
+
+    bots.forEach((bot, index) => {
+      if (index >= shuffledPositions.length) {
+        console.warn(`No valid spawn position for bot ${index + 1}`);
+        return;
+      }
+
+      const spawnPos = shuffledPositions[index];
+      const settler = unitFactory.createUnit('settler', spawnPos, bot.playerId, bot.civId);
+      
+      if (!settler) {
+        console.warn(`Failed to create bot unit for ${bot.civId} at (${spawnPos.tx}, ${spawnPos.ty})`);
+      }
+    });
+  }
+
+  /**
+   * Finds valid spawn positions on the map.
+   * Valid positions are not blocked, not water, and not too close to player start.
+   */
+  private getValidSpawnPositions(): Array<{ tx: number; ty: number }> {
+    const validPositions: Array<{ tx: number; ty: number }> = [];
+    const { width, height } = this.mapData.getDimensions();
+    const playerStart = this.mapData.startPos;
+    const minDistanceFromPlayer = 5; // Minimum distance from player start
+
+    for (let ty = 0; ty < height; ty++) {
+      for (let tx = 0; tx < width; tx++) {
+        const terrain = this.mapData.getTerrainAt(tx, ty);
+        
+        // Skip if terrain is blocked or doesn't exist
+        if (!terrain || terrain.blocked) {
+          continue;
+        }
+
+        // Skip water (check if terrain id contains "water" or has moveCost -1)
+        // Actually, blocked already covers this, but let's be explicit
+        if (terrain.id.toLowerCase().includes('water')) {
+          continue;
+        }
+
+        // Skip positions too close to player start
+        const distance = Math.max(
+          Math.abs(tx - playerStart.tx),
+          Math.abs(ty - playerStart.ty),
+        );
+        if (distance < minDistanceFromPlayer) {
+          continue;
+        }
+
+        validPositions.push({ tx, ty });
+      }
+    }
+
+    return validPositions;
   }
 
   // --- Per-Frame Update Methods ---
