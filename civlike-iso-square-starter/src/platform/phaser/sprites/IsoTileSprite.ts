@@ -40,6 +40,7 @@ export class IsoTileSprite extends Phaser.GameObjects.Container {
     if (textureKey && scene.textures.exists(textureKey)) {
       // Use custom image texture
       const tileImage = scene.add.image(0, 0, textureKey);
+      tileImage.setOrigin(0.5, 0.5); // Ensure centered anchor
       tileImage.setDisplaySize(TILE_W, TILE_H);
       this.baseTile = tileImage;
     } else {
@@ -51,9 +52,16 @@ export class IsoTileSprite extends Phaser.GameObjects.Container {
     this.add(this.baseTile);
 
     // --- Add outline stroke on top ---
-    const outline = scene.add
-      .polygon(0, 0, points, 0x000000, 0) // Transparent fill
-      .setStrokeStyle(1, 0x333333);
+    // Use Graphics for precise grid line rendering
+    const outline = scene.add.graphics();
+    outline.lineStyle(1, 0x333333, 1);
+    outline.beginPath();
+    outline.moveTo(points[0].x, points[0].y); // Top
+    outline.lineTo(points[1].x, points[1].y); // Right
+    outline.lineTo(points[2].x, points[2].y); // Bottom
+    outline.lineTo(points[3].x, points[3].y); // Left
+    outline.closePath();
+    outline.strokePath();
     this.add(outline);
 
     // --- Fog of war overlay ---
