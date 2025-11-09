@@ -1,4 +1,5 @@
 export * from './CityGrowthSystem';
+export * from './CombatSystem';
 export * from './FogSystem';
 export * from './FoundCitySystem';
 export * from './MovementSystem';

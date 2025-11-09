@@ -46,6 +46,11 @@ export interface ProduceUnitIntent {
   payload: { cityEntity: Entity; unitType: string };
 }
 
+export interface AttackIntent {
+  type: 'Attack';
+  payload: { attacker: Entity; target: Entity };
+}
+
 /**
  * An internal event triggered by the TurnSystem.
  */
@@ -63,6 +68,7 @@ export type Intent =
   | CancelMoveModeIntent
   | FoundCityIntent
   | ProduceUnitIntent
+  | AttackIntent
   | TurnBeganIntent;
 
 // --- Type Guard for checking intent types ---

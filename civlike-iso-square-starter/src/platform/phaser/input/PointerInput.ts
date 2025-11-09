@@ -3,6 +3,7 @@ import { worldToTile, isoToWorld } from '@engine/math/iso';
 import { GameState } from '@/state/GameState';
 import { IntentQueue } from '@/state/IntentQueue';
 import Phaser from 'phaser';
+import * as Components from '@engine/gameplay/components';
 import { Unit, City, TransformTile, ScreenPos } from '@engine/gameplay/components';
 
 /**
@@ -61,6 +62,44 @@ export class PointerInput {
     // If no city found by tile, try checking sprite bounds
     if (clickedCity === null) {
       clickedCity = this.findCityBySpriteBounds(worldPoint.x, worldPoint.y);
+    }
+
+    // Check if we should attack instead of selecting
+    const selectedEntity = this.gameState.selectedEntity;
+    if (selectedEntity !== null && clickedUnit !== null && clickedUnit !== selectedEntity) {
+      // Check if selected unit can attack and if clicked unit is an enemy
+      const selectedUnit = this.world.getComponent(selectedEntity, Unit);
+      const clickedUnitComponent = this.world.getComponent(clickedUnit, Unit);
+      const selectedOwner = this.world.getComponent(selectedEntity, Components.Owner);
+      const clickedOwner = this.world.getComponent(clickedUnit, Components.Owner);
+
+      if (
+        selectedUnit &&
+        clickedUnitComponent &&
+        selectedUnit.canAttack &&
+        selectedOwner &&
+        clickedOwner &&
+        selectedOwner.playerId !== clickedOwner.playerId
+      ) {
+        // Check if units are adjacent
+        const selectedPos = this.world.getComponent(selectedEntity, Components.TransformTile);
+        const clickedPos = this.world.getComponent(clickedUnit, Components.TransformTile);
+
+        if (selectedPos && clickedPos) {
+          const dx = Math.abs(selectedPos.tx - clickedPos.tx);
+          const dy = Math.abs(selectedPos.ty - clickedPos.ty);
+          const isAdjacent = (dx === 1 && dy === 0) || (dx === 0 && dy === 1);
+
+          if (isAdjacent) {
+            // Attack the enemy unit
+            this.intents.push({
+              type: 'Attack',
+              payload: { attacker: selectedEntity, target: clickedUnit },
+            });
+            return;
+          }
+        }
+      }
     }
 
     // Prioritize units over cities if both are at the same location

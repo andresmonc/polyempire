@@ -37,6 +37,9 @@ export class Unit {
     public sight: number, // Sight range in tiles (Chebyshev distance)
     public health: number, // Current health
     public maxHealth: number, // Maximum health
+    public attack: number, // Attack strength (0 if unit cannot attack)
+    public defense: number, // Defense strength
+    public canAttack: boolean, // Whether this unit can initiate combat
     public path: TilePoint[] = [], // The current planned path
   ) {}
 }

@@ -86,6 +86,9 @@ export class ProduceUnitSystem extends System {
       mergedUnitData.sightRange,
       mergedUnitData.health,
       mergedUnitData.maxHealth,
+      mergedUnitData.attack,
+      mergedUnitData.defense,
+      mergedUnitData.canAttack,
     ));
     this.world.addComponent(unit, new Components.UnitType(unitType));
     this.world.addComponent(unit, new Components.Owner(owner.playerId));

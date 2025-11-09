@@ -33,3 +33,14 @@ export const DEFAULT_UNIT_SIGHT = 2;
 export const CURSOR_COLOR = 0xffffff;
 export const PATH_COLOR = 0x00ff00;
 export const SELECTION_COLOR = 0xffff00;
+
+// --- Combat Settings ---
+export const COMBAT = {
+  // Base damage calculation: damage = attack * (1 + random(0, variance))
+  DAMAGE_VARIANCE: 0.2, // 20% random variance in damage
+  MIN_DAMAGE: 1, // Minimum damage dealt (even if calculation is lower)
+  DAMAGE_NUMBER_DURATION: 1500, // How long damage numbers stay visible (ms)
+  DAMAGE_NUMBER_OFFSET_Y: -40, // Vertical offset for damage numbers above units
+  DAMAGE_NUMBER_COLOR: 0xff0000, // Red color for damage numbers
+  DAMAGE_NUMBER_FONT_SIZE: '24px',
+};

@@ -7,6 +7,9 @@ export interface UnitOverride {
   sightRange?: number; // Override sight range
   health?: number; // Override health
   maxHealth?: number; // Override max health
+  attack?: number; // Override attack strength
+  defense?: number; // Override defense strength
+  canAttack?: boolean; // Override canAttack flag
 }
 
 /**
@@ -66,6 +69,9 @@ export interface BaseUnitData {
   sightRange: number;
   health: number;
   maxHealth: number;
+  attack: number;
+  defense: number;
+  canAttack: boolean;
 }
 
 /**
@@ -88,6 +94,9 @@ export function mergeUnitData(
     sightRange: civOverride.sightRange ?? baseUnit.sightRange,
     health: civOverride.health ?? baseUnit.health,
     maxHealth: civOverride.maxHealth ?? baseUnit.maxHealth,
+    attack: civOverride.attack ?? baseUnit.attack,
+    defense: civOverride.defense ?? baseUnit.defense,
+    canAttack: civOverride.canAttack ?? baseUnit.canAttack,
   };
 }
 

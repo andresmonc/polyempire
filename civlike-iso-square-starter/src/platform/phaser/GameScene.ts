@@ -273,6 +273,7 @@ export class GameScene extends Phaser.Scene {
     this.ecsWorld.addSystem(new Systems.MovementSystem(this.mapData));
     this.ecsWorld.addSystem(new Systems.FogSystem(this.fogOfWar, this.intentQueue));
     this.ecsWorld.addSystem(new Systems.FoundCitySystem(this.intentQueue, this.gameState, this.game.events));
+    this.ecsWorld.addSystem(new Systems.CombatSystem(this.intentQueue, this.game.events, this));
     this.ecsWorld.addSystem(new Systems.ProduceUnitSystem(
       this.intentQueue,
       this.game.events,
@@ -326,6 +327,9 @@ export class GameScene extends Phaser.Scene {
       mergedUnitData.sightRange,
       mergedUnitData.health,
       mergedUnitData.maxHealth,
+      mergedUnitData.attack,
+      mergedUnitData.defense,
+      mergedUnitData.canAttack,
     ));
     this.ecsWorld.addComponent(settler, new Components.UnitType('settler'));
     this.ecsWorld.addComponent(settler, new Components.Owner(0)); // Player 0
