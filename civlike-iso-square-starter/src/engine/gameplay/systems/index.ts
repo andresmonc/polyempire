@@ -1,6 +1,7 @@
 export * from './BuildBuildingSystem';
 export * from './BuildingYieldSystem';
 export * from './CityGrowthSystem';
+export * from './CivilizationProductionSystem';
 export * from './CombatSystem';
 export * from './FogSystem';
 export * from './FoundCitySystem';

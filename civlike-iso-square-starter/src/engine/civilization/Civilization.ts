@@ -27,6 +27,7 @@ export interface Civilization {
   id: string; // e.g., "romans", "greeks"
   name: string; // Display name, e.g., "Romans"
   color: string; // Hex color for UI/borders, e.g., "0xff0000"
+  startingProduction?: number; // Starting production per turn for this civilization
   units?: Record<string, UnitOverride>; // Unit type overrides (e.g., "settler": { name: "Colonist" })
   sprites?: CivilizationSprites; // Sprite overrides
 }

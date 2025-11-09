@@ -162,6 +162,37 @@ export class Resources {
 }
 
 /**
+ * Represents a civilization's resource stockpile (civilization-level resources).
+ * This is separate from city-level resources and aggregates production from all cities.
+ */
+export class CivilizationResources {
+  constructor(
+    public production: number = 0, // Civilization-level production stockpile
+  ) {}
+
+  /**
+   * Adds production to the civilization stockpile.
+   */
+  addProduction(amount: number): void {
+    this.production += amount;
+  }
+
+  /**
+   * Checks if the civilization has enough production for a cost.
+   */
+  canAfford(cost: number): boolean {
+    return this.production >= cost;
+  }
+
+  /**
+   * Spends production (assumes canAfford was checked first).
+   */
+  spend(amount: number): void {
+    this.production -= amount;
+  }
+}
+
+/**
  * Represents a production queue item.
  */
 export interface ProductionItem {

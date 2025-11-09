@@ -9,11 +9,12 @@ import { MapData } from '@engine/map/MapData';
 import { UnitSprite } from '@platform/phaser/sprites/UnitSprite';
 import { DEFAULT_CIVILIZATION_ID } from '@config/game';
 import { logger } from '@/utils/logger';
+import { CivilizationProductionSystem } from './CivilizationProductionSystem';
 import Phaser from 'phaser';
 
 /**
  * Handles city production.
- * Cities accumulate production points each turn and complete items in their queue.
+ * Cities use civilization-level production to complete items in their queue.
  */
 export class ProductionSystem extends System {
   private intents: IntentQueue;
@@ -21,6 +22,7 @@ export class ProductionSystem extends System {
   private unitFactory: UnitFactory;
   private gameScene: Phaser.Scene;
   private mapData: MapData;
+  private civilizationProductionSystem: CivilizationProductionSystem;
 
   constructor(
     intents: IntentQueue,
@@ -29,12 +31,14 @@ export class ProductionSystem extends System {
     civilizationRegistry: CivilizationRegistry,
     unitSprites: Map<Entity, UnitSprite>,
     mapData: MapData,
+    civilizationProductionSystem: CivilizationProductionSystem,
   ) {
     super();
     this.intents = intents;
     this.events = events;
     this.gameScene = gameScene;
     this.mapData = mapData;
+    this.civilizationProductionSystem = civilizationProductionSystem;
     this.unitFactory = new UnitFactory(this.world, gameScene, civilizationRegistry, unitSprites);
   }
 
@@ -47,28 +51,29 @@ export class ProductionSystem extends System {
     const cities = this.world.view(
       Components.City,
       Components.TransformTile,
-      Components.Resources,
       Components.ProductionQueue,
+      Components.CivilizationComponent,
     );
 
     for (const cityEntity of cities) {
-      const city = this.world.getComponent(cityEntity, Components.City)!;
-      const resources = this.world.getComponent(cityEntity, Components.Resources)!;
       const queue = this.world.getComponent(cityEntity, Components.ProductionQueue)!;
+      const civilization = this.world.getComponent(cityEntity, Components.CivilizationComponent);
 
       // Get current production item
       const currentItem = queue.getCurrent();
       if (!currentItem) continue;
 
-      // Use production from resources stockpile
-      // Production is accumulated from yields each turn by YieldSystem
-      // We use the production stockpile to build things
-      const availableProduction = resources.production;
+      // Get civilization ID (fallback to default if not set)
+      const civId = civilization?.civId || DEFAULT_CIVILIZATION_ID;
+
+      // Use production from civilization-level stockpile
+      // Production is accumulated from cities and starting production by CivilizationProductionSystem
+      const availableProduction = this.civilizationProductionSystem.getProduction(civId);
       const neededProduction = currentItem.cost - queue.currentProgress;
       const productionToUse = Math.min(availableProduction, neededProduction);
       
       queue.currentProgress += productionToUse;
-      resources.production -= productionToUse; // Spend production
+      this.civilizationProductionSystem.spendProduction(civId, productionToUse);
 
       // Check if current item is complete
       if (queue.currentProgress >= currentItem.cost) {

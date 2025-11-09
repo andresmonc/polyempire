@@ -46,6 +46,7 @@ export class GameScene extends Phaser.Scene {
   private unitsContainer!: Phaser.GameObjects.Container;
   private pathPreview!: Phaser.GameObjects.Graphics;
   private controls!: Phaser.Cameras.Controls.SmoothedKeyControl;
+  public civilizationProductionSystem!: Systems.CivilizationProductionSystem; // Made public for ProductionSystem access
   private isDragging = false;
   private dragStartX = 0;
   private dragStartY = 0;
@@ -279,6 +280,12 @@ export class GameScene extends Phaser.Scene {
     this.ecsWorld.addSystem(new Systems.FoundCitySystem(this.intentQueue, this.gameState, this.game.events));
     this.ecsWorld.addSystem(new Systems.CombatSystem(this.intentQueue, this.game.events, this));
     this.ecsWorld.addSystem(new Systems.YieldSystem(this.intentQueue, this.game.events, this.mapData));
+    this.civilizationProductionSystem = new Systems.CivilizationProductionSystem(
+      this.intentQueue,
+      this.game.events,
+      this.civilizationRegistry,
+    );
+    this.ecsWorld.addSystem(this.civilizationProductionSystem);
     this.ecsWorld.addSystem(new Systems.ProductionSystem(
       this.intentQueue,
       this.game.events,
@@ -286,6 +293,7 @@ export class GameScene extends Phaser.Scene {
       this.civilizationRegistry,
       this.unitSprites,
       this.mapData,
+      this.civilizationProductionSystem,
     ));
     this.ecsWorld.addSystem(new Systems.ProduceUnitSystem(
       this.intentQueue,
