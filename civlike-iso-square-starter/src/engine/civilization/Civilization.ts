@@ -5,6 +5,8 @@ export interface UnitOverride {
   name?: string; // Custom name for this unit type
   mp?: number; // Override movement points
   sightRange?: number; // Override sight range
+  health?: number; // Override health
+  maxHealth?: number; // Override max health
 }
 
 /**
@@ -62,6 +64,8 @@ export interface BaseUnitData {
   name: string;
   mp: number;
   sightRange: number;
+  health: number;
+  maxHealth: number;
 }
 
 /**
@@ -82,6 +86,8 @@ export function mergeUnitData(
     name: civOverride.name ?? baseUnit.name,
     mp: civOverride.mp ?? baseUnit.mp,
     sightRange: civOverride.sightRange ?? baseUnit.sightRange,
+    health: civOverride.health ?? baseUnit.health,
+    maxHealth: civOverride.maxHealth ?? baseUnit.maxHealth,
   };
 }
 

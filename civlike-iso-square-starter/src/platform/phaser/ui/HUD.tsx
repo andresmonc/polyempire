@@ -191,6 +191,9 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
               Movement: {selectedUnit.mp} / {selectedUnit.maxMp}
             </div>
             <div>Sight: {selectedUnit.sight}</div>
+            <div>
+              Health: {selectedUnit.health} / {selectedUnit.maxHealth}
+            </div>
           </div>
         )}
 

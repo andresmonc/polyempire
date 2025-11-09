@@ -313,7 +313,13 @@ export class GameScene extends Phaser.Scene {
 
     const settler = this.ecsWorld.createEntity();
     this.ecsWorld.addComponent(settler, new Components.TransformTile(startPos.tx, startPos.ty));
-    this.ecsWorld.addComponent(settler, new Components.Unit(mergedUnitData.mp, mergedUnitData.mp, mergedUnitData.sightRange));
+    this.ecsWorld.addComponent(settler, new Components.Unit(
+      mergedUnitData.mp,
+      mergedUnitData.mp,
+      mergedUnitData.sightRange,
+      mergedUnitData.health,
+      mergedUnitData.maxHealth,
+    ));
     this.ecsWorld.addComponent(settler, new Components.UnitType('settler'));
     this.ecsWorld.addComponent(settler, new Components.Owner(0)); // Player 0
     this.ecsWorld.addComponent(settler, new Components.CivilizationComponent(civId));

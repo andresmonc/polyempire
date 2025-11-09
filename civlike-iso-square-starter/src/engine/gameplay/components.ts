@@ -35,6 +35,8 @@ export class Unit {
     public mp: number, // Current movement points
     public maxMp: number,
     public sight: number, // Sight range in tiles (Chebyshev distance)
+    public health: number, // Current health
+    public maxHealth: number, // Maximum health
     public path: TilePoint[] = [], // The current planned path
   ) {}
 }
