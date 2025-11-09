@@ -35,6 +35,8 @@
       }
       canvas {
         display: block;
+        image-rendering: auto; /* Use smooth rendering for non-pixel art */
+        image-rendering: -webkit-optimize-contrast; /* Fallback for older browsers */
       }
     </style>
   </head>

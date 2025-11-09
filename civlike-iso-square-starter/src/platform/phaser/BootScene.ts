@@ -33,6 +33,8 @@ export class BootScene extends Phaser.Scene {
   }
 
   create() {
+    // Phaser automatically uses LINEAR filtering when pixelArt: false
+    // Textures will be smoothly scaled with antialiasing
     this.scene.start('StartScene');
   }
 }
