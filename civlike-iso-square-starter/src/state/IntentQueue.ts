@@ -46,6 +46,16 @@ export interface ProduceUnitIntent {
   payload: { cityEntity: Entity; unitType: string };
 }
 
+export interface ProduceBuildingIntent {
+  type: 'ProduceBuilding';
+  payload: { cityEntity: Entity; buildingType: string };
+}
+
+export interface BuildBuildingIntent {
+  type: 'BuildBuilding';
+  payload: { cityEntity: Entity; buildingType: string; tx: number; ty: number };
+}
+
 export interface AttackIntent {
   type: 'Attack';
   payload: { attacker: Entity; target: Entity };
@@ -68,6 +78,8 @@ export type Intent =
   | CancelMoveModeIntent
   | FoundCityIntent
   | ProduceUnitIntent
+  | ProduceBuildingIntent
+  | BuildBuildingIntent
   | AttackIntent
   | TurnBeganIntent;
 

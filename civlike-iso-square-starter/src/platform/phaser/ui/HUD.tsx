@@ -6,6 +6,7 @@ import { World, Entity } from '@engine/ecs';
 import * as Components from '@engine/gameplay/components';
 import { MapData } from '@engine/map/MapData';
 import { Terrain } from '@engine/map/Terrain';
+import { CityYieldsCalculator, CityYields } from '@/utils/cityYields';
 
 interface HUDProps {
   game: Phaser.Game;
@@ -86,6 +87,44 @@ const commandButtonHoverStyle: React.CSSProperties = {
   backgroundColor: '#5a6578',
 };
 
+const topBarStyle: React.CSSProperties = {
+  position: 'absolute',
+  top: '0',
+  left: '0',
+  right: '0',
+  display: 'flex',
+  justifyContent: 'center',
+  alignItems: 'center',
+  gap: '30px',
+  backgroundColor: 'rgba(0, 0, 0, 0.85)',
+  padding: '12px 20px',
+  borderBottom: '2px solid #444',
+  fontFamily: 'sans-serif',
+  fontSize: '16px',
+  fontWeight: '600',
+  color: 'white',
+  pointerEvents: 'none',
+  zIndex: 1000,
+};
+
+const yieldItemStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '8px',
+};
+
+const yieldLabelStyle: React.CSSProperties = {
+  color: '#aaa',
+  fontSize: '14px',
+  fontWeight: '400',
+};
+
+const yieldValueStyle: React.CSSProperties = {
+  color: '#fff',
+  fontSize: '18px',
+  fontWeight: '600',
+};
+
 export const HUD: React.FC<HUDProps> = ({ game }) => {
   const [intentQueue, setIntentQueue] = useState<IntentQueue | null>(null);
   const [gameState, setGameState] = useState<GameState | null>(null);
@@ -98,7 +137,11 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
   const [selectedCity, setSelectedCity] = useState<Components.City | null>(null);
   const [selectedCityResources, setSelectedCityResources] = useState<Components.Resources | null>(null);
   const [selectedCityQueue, setSelectedCityQueue] = useState<Components.ProductionQueue | null>(null);
+  const [selectedCityYields, setSelectedCityYields] = useState<CityYields | null>(null);
   const [selectedTile, setSelectedTile] = useState<Terrain | null>(null);
+  
+  // --- Civilization Total Yields ---
+  const [totalYields, setTotalYields] = useState<CityYields>({ food: 0, production: 0, gold: 0 });
 
   useEffect(() => {
     const handleGameReady = (data: {
@@ -140,14 +183,29 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
       setSelectedCity(city ?? null);
       setSelectedCityResources(cityResources ?? null);
       setSelectedCityQueue(cityQueue ?? null);
-
-      // Access map data from GameScene
+      
+      // Access map data from GameScene (reused for both yields and terrain)
       const gameScene = game.scene.getScene('GameScene');
-      if (transform && gameScene && 'mapData' in gameScene) {
+      if (gameScene && 'mapData' in gameScene) {
         const map = (gameScene as { mapData: MapData }).mapData;
-        const terrain = map.getTerrainAt(transform.tx, transform.ty);
-        setSelectedTile(terrain ?? null);
+        
+        // Calculate per-turn yields for selected city
+        if (city && transform && ecsWorld) {
+          const yields = CityYieldsCalculator.calculateYields(ecsWorld, map, selectedEntity);
+          setSelectedCityYields(yields);
+        } else {
+          setSelectedCityYields(null);
+        }
+
+        // Get terrain for selected tile
+        if (transform) {
+          const terrain = map.getTerrainAt(transform.tx, transform.ty);
+          setSelectedTile(terrain ?? null);
+        } else {
+          setSelectedTile(null);
+        }
       } else {
+        setSelectedCityYields(null);
         setSelectedTile(null);
       }
     } else {
@@ -156,9 +214,20 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
       setSelectedCity(null);
       setSelectedCityResources(null);
       setSelectedCityQueue(null);
+      setSelectedCityYields(null);
       setSelectedTile(null);
     }
-  }, [gameState, ecsWorld, gameState?.selectedEntity, gameState?.moveMode, _]); // Re-run when selection, move mode, or tick changes
+
+    // Calculate total civilization yields (player 0)
+    if (ecsWorld) {
+      const gameScene = game.scene.getScene('GameScene');
+      if (gameScene && 'mapData' in gameScene) {
+        const map = (gameScene as { mapData: MapData }).mapData;
+        const total = CityYieldsCalculator.calculateTotalYields(ecsWorld, map, 0);
+        setTotalYields(total);
+      }
+    }
+  }, [gameState, ecsWorld, gameState?.selectedEntity, gameState?.moveMode, _, game]); // Re-run when selection, move mode, tick, or game changes
 
   const handleEndTurn = () => {
     intentQueue?.push({ type: 'EndTurn' });
@@ -187,6 +256,15 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
     }
   };
 
+  const handleProduceBuilding = (buildingType: string) => {
+    if (gameState?.selectedEntity !== null) {
+      intentQueue?.push({
+        type: 'ProduceBuilding',
+        payload: { cityEntity: gameState.selectedEntity, buildingType },
+      });
+    }
+  };
+
   if (!gameState) {
     return null; // Don't render anything until the game is ready
   }
@@ -196,6 +274,22 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
 
   return (
     <>
+      {/* Top Bar - Civilization Total Yields */}
+      <div style={topBarStyle}>
+        <div style={yieldItemStyle}>
+          <span style={yieldLabelStyle}>Food:</span>
+          <span style={yieldValueStyle}>+{totalYields.food.toFixed(1)}</span>
+        </div>
+        <div style={yieldItemStyle}>
+          <span style={yieldLabelStyle}>Production:</span>
+          <span style={yieldValueStyle}>+{totalYields.production.toFixed(1)}</span>
+        </div>
+        <div style={yieldItemStyle}>
+          <span style={yieldLabelStyle}>Gold:</span>
+          <span style={yieldValueStyle}>+{totalYields.gold.toFixed(1)}</span>
+        </div>
+      </div>
+
       {/* Left side HUD */}
       <div style={hudStyle}>
         <div>
@@ -235,6 +329,15 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
                 <div>Food: {selectedCityResources.food.toFixed(1)}</div>
                 <div>Production: {selectedCityResources.production.toFixed(1)}</div>
                 <div>Gold: {selectedCityResources.gold.toFixed(1)}</div>
+              </div>
+            )}
+
+            {selectedCityYields && (
+              <div style={{ marginTop: '10px' }}>
+                <strong>Per Turn:</strong>
+                <div>Food: +{selectedCityYields.food.toFixed(1)}</div>
+                <div>Production: +{selectedCityYields.production.toFixed(1)}</div>
+                <div>Gold: +{selectedCityYields.gold.toFixed(1)}</div>
               </div>
             )}
 
@@ -291,6 +394,40 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
                 >
                   Scout (30)
                 </button>
+              </div>
+            </div>
+
+            <div style={{ marginTop: '10px' }}>
+              <strong>Produce Building:</strong>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', marginTop: '5px' }}>
+                {(() => {
+                  // Get buildings data from game scene
+                  const gameScene = game.scene.getScene('GameScene');
+                  if (!gameScene || !('cache' in gameScene)) return null;
+                  
+                  try {
+                    const buildingsData = (gameScene as any).cache.json.get('buildings');
+                    if (!buildingsData) return null;
+                    
+                    return Object.entries(buildingsData).map(([buildingType, building]: [string, any]) => {
+                      const terrainReq = building.terrainRequirements?.length > 0
+                        ? ` (${building.terrainRequirements.join(', ')})`
+                        : '';
+                      return (
+                        <button
+                          key={buildingType}
+                          style={{ ...buttonStyle, fontSize: '11px', padding: '5px 10px' }}
+                          onClick={() => handleProduceBuilding(buildingType)}
+                          title={building.description || building.name}
+                        >
+                          {building.name} ({building.productionCost}{terrainReq})
+                        </button>
+                      );
+                    });
+                  } catch (error) {
+                    return null;
+                  }
+                })()}
               </div>
             </div>
           </div>

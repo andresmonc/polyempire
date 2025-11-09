@@ -41,6 +41,7 @@ export class GameScene extends Phaser.Scene {
   private tileSprites = new Map<Entity, IsoTileSprite>();
   public unitSprites = new Map<Entity, UnitSprite>(); // Made public for PointerInput access
   public citySprites = new Map<Entity, CitySprite>(); // Made public for PointerInput access
+  private buildingSprites = new Map<Entity, Phaser.GameObjects.Graphics>();
   private cityBorders = new Map<Entity, Phaser.GameObjects.Graphics>();
   private unitsContainer!: Phaser.GameObjects.Container;
   private pathPreview!: Phaser.GameObjects.Graphics;
@@ -94,6 +95,7 @@ export class GameScene extends Phaser.Scene {
     // --- Phaser-specific Updates ---
     this.updateUnitSprites();
     this.updateCitySprites();
+    this.updateBuildingSprites();
     this.updateCityBorders();
     this.updateTileSprites();
     this.updateSelectionAndPath();
@@ -283,11 +285,26 @@ export class GameScene extends Phaser.Scene {
       this,
       this.civilizationRegistry,
       this.unitSprites,
+      this.mapData,
     ));
     this.ecsWorld.addSystem(new Systems.ProduceUnitSystem(
       this.intentQueue,
       this.game.events,
       this,
+    ));
+    this.ecsWorld.addSystem(new Systems.ProduceBuildingSystem(
+      this.intentQueue,
+      this.game.events,
+      this,
+    ));
+    this.ecsWorld.addSystem(new Systems.BuildBuildingSystem(
+      this.intentQueue,
+      this.game.events,
+      this,
+    ));
+    this.ecsWorld.addSystem(new Systems.BuildingYieldSystem(
+      this.intentQueue,
+      this.game.events,
     ));
     this.ecsWorld.addSystem(new Systems.RenderSyncSystem()); // Must be last logic system
   }
@@ -420,6 +437,58 @@ export class GameScene extends Phaser.Scene {
         }
       }
     }
+  }
+
+  private updateBuildingSprites() {
+    const buildings = this.ecsWorld.view(Components.Building, Components.TransformTile);
+    
+    // Clean up sprites for buildings that no longer exist
+    const currentBuildingEntities = new Set(buildings);
+    for (const [entity, sprite] of this.buildingSprites.entries()) {
+      if (!currentBuildingEntities.has(entity)) {
+        sprite.destroy();
+        this.buildingSprites.delete(entity);
+      }
+    }
+
+    // Update sprites for existing buildings
+    for (const buildingEntity of buildings) {
+      const building = this.ecsWorld.getComponent(buildingEntity, Components.Building)!;
+      const transform = this.ecsWorld.getComponent(buildingEntity, Components.TransformTile)!;
+      
+      let buildingSprite = this.buildingSprites.get(buildingEntity);
+      if (!buildingSprite) {
+        // Create new building sprite (simple colored circle for now)
+        buildingSprite = this.add.graphics();
+        this.buildingSprites.set(buildingEntity, buildingSprite);
+      }
+
+      // Update position
+      const worldPos = tileToWorld(transform);
+      buildingSprite.clear();
+      
+      // Draw a small icon to represent the building
+      // Color based on building type (simple hash)
+      const color = this.getBuildingColor(building.buildingType);
+      buildingSprite.fillStyle(color, 0.8);
+      buildingSprite.fillCircle(0, -8, 6); // Small circle above tile center
+      buildingSprite.setPosition(worldPos.x, worldPos.y);
+      buildingSprite.setDepth(worldPos.y + TILE_H / 2);
+    }
+  }
+
+  /**
+   * Gets a color for a building type (simple hash-based coloring).
+   */
+  private getBuildingColor(buildingType: string): number {
+    // Simple hash function to get consistent colors
+    let hash = 0;
+    for (let i = 0; i < buildingType.length; i++) {
+      hash = buildingType.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    // Generate a color in the range 0x444444 to 0xcccccc
+    const color = 0x444444 + (Math.abs(hash) % 0x888888);
+    return color;
   }
 
   private updateCityBorders() {

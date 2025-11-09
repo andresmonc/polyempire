@@ -171,6 +171,17 @@ export interface ProductionItem {
 }
 
 /**
+ * Represents a building placed on a tile.
+ */
+export class Building {
+  constructor(
+    public buildingType: string, // e.g., 'granary', 'lumberMill'
+    public yields: { food?: number; production?: number; gold?: number } = {}, // Yields from this building
+    public cityBonus: { populationGrowth?: number } = {}, // Bonuses to the owning city
+  ) {}
+}
+
+/**
  * Represents a city's production queue.
  */
 export class ProductionQueue {

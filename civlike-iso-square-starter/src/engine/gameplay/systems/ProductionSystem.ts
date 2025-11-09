@@ -3,6 +3,9 @@ import { IntentQueue, isIntent } from '@/state/IntentQueue';
 import * as Components from '../components';
 import { CivilizationRegistry } from '@engine/civilization/Civilization';
 import { UnitFactory } from '@/utils/unitFactory';
+import { BuildingFactory } from '@/utils/buildingFactory';
+import { CityBorders } from '@/utils/cityBorders';
+import { MapData } from '@engine/map/MapData';
 import { UnitSprite } from '@platform/phaser/sprites/UnitSprite';
 import { DEFAULT_CIVILIZATION_ID } from '@config/game';
 import { logger } from '@/utils/logger';
@@ -16,6 +19,8 @@ export class ProductionSystem extends System {
   private intents: IntentQueue;
   private events: Phaser.Events.EventEmitter;
   private unitFactory: UnitFactory;
+  private gameScene: Phaser.Scene;
+  private mapData: MapData;
 
   constructor(
     intents: IntentQueue,
@@ -23,10 +28,13 @@ export class ProductionSystem extends System {
     gameScene: Phaser.Scene,
     civilizationRegistry: CivilizationRegistry,
     unitSprites: Map<Entity, UnitSprite>,
+    mapData: MapData,
   ) {
     super();
     this.intents = intents;
     this.events = events;
+    this.gameScene = gameScene;
+    this.mapData = mapData;
     this.unitFactory = new UnitFactory(this.world, gameScene, civilizationRegistry, unitSprites);
   }
 
@@ -95,9 +103,75 @@ export class ProductionSystem extends System {
     if (item.type === 'unit') {
       this.completeUnitProduction(cityEntity, item.name);
     } else if (item.type === 'building') {
-      // TODO: Implement building production
-      logger.info(`Building ${item.name} completed (not yet implemented)`);
+      this.completeBuildingProduction(cityEntity, item.name);
     }
+  }
+
+  /**
+   * Completes building production and places the building.
+   * Automatically places on city center if valid, otherwise finds first valid tile in city borders.
+   */
+  private completeBuildingProduction(cityEntity: Entity, buildingType: string): void {
+    const transform = this.world.getComponent(cityEntity, Components.TransformTile);
+    if (!transform) {
+      logger.warn('Cannot produce building: city missing TransformTile');
+      return;
+    }
+
+    // Try to place on city center first
+    const cityCenterCheck = BuildingFactory.canBuildOnTile(
+      this.world,
+      this.mapData,
+      buildingType,
+      transform.tx,
+      transform.ty,
+      cityEntity,
+      this.gameScene,
+    );
+
+    if (cityCenterCheck.canBuild) {
+      const building = BuildingFactory.createBuilding(
+        this.world,
+        buildingType,
+        { tx: transform.tx, ty: transform.ty },
+        cityEntity,
+        this.gameScene,
+      );
+      if (building) {
+        logger.debug(`Building ${buildingType} placed at city center (${transform.tx}, ${transform.ty})`);
+        return;
+      }
+    }
+
+    // If city center doesn't work, find first valid tile in city borders
+    const cityTiles = CityBorders.getCityTiles(this.world, this.mapData, cityEntity);
+    for (const tile of cityTiles) {
+      const check = BuildingFactory.canBuildOnTile(
+        this.world,
+        this.mapData,
+        buildingType,
+        tile.tx,
+        tile.ty,
+        cityEntity,
+        this.gameScene,
+      );
+
+      if (check.canBuild) {
+        const building = BuildingFactory.createBuilding(
+          this.world,
+          buildingType,
+          tile,
+          cityEntity,
+          this.gameScene,
+        );
+        if (building) {
+          logger.debug(`Building ${buildingType} placed at (${tile.tx}, ${tile.ty})`);
+          return;
+        }
+      }
+    }
+
+    logger.warn(`Could not find valid location to place building ${buildingType} for city`);
   }
 
   /**
