@@ -82,8 +82,8 @@ export class FogSystem extends System {
         .filter(c => c.owner.playerId === 0); // TODO: Support multiple players/AI
 
       this.fogOfWar.recompute(
-        playerUnits.map(u => ({ pos: u.pos, sight: u.unit.sight })),
-        playerCities.map(c => ({ pos: c.pos, sight: c.city.getSightRange() })),
+        playerUnits.map(u => ({ pos: { tx: u.pos.tx, ty: u.pos.ty }, sight: u.unit.sight })),
+        playerCities.map(c => ({ pos: { tx: c.pos.tx, ty: c.pos.ty }, sight: c.city.getSightRange() })),
       );
     }
   }

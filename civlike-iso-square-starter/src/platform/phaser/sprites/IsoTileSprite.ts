@@ -15,7 +15,7 @@ import { isoToWorld } from '@engine/math/iso';
  * This extends Container, making it a renderable object that can hold other objects.
  */
 export class IsoTileSprite extends Phaser.GameObjects.Container {
-  private fogOverlay: Phaser.GameObjects.Polygon;
+  private fogOverlay: Phaser.GameObjects.Graphics;
   private baseTile: Phaser.GameObjects.GameObject;
 
   constructor(
@@ -65,9 +65,17 @@ export class IsoTileSprite extends Phaser.GameObjects.Container {
     this.add(outline);
 
     // --- Fog of war overlay ---
-    this.fogOverlay = scene.add
-      .polygon(0, 0, points, FOG_COLOR)
-      .setAlpha(FOG_ALPHA_UNREVEALED);
+    // Use Graphics for precise fog overlay rendering
+    this.fogOverlay = scene.add.graphics();
+    this.fogOverlay.fillStyle(FOG_COLOR, 1);
+    this.fogOverlay.beginPath();
+    this.fogOverlay.moveTo(points[0].x, points[0].y); // Top
+    this.fogOverlay.lineTo(points[1].x, points[1].y); // Right
+    this.fogOverlay.lineTo(points[2].x, points[2].y); // Bottom
+    this.fogOverlay.lineTo(points[3].x, points[3].y); // Left
+    this.fogOverlay.closePath();
+    this.fogOverlay.fillPath();
+    this.fogOverlay.setAlpha(FOG_ALPHA_UNREVEALED);
     this.add(this.fogOverlay);
   }
 
