@@ -1,6 +1,6 @@
 import { System } from '@engine/ecs';
 import { IntentQueue, isIntent } from '@/state/IntentQueue';
-import { HUMAN_PLAYER_ID } from '@config/game';
+import { GameState } from '@/state/GameState';
 import * as Components from '../components';
 import { BuildingsData } from '@/utils/buildingFactory';
 import { logger } from '@/utils/logger';
@@ -15,12 +15,14 @@ export class ProduceBuildingSystem extends System {
   private intents: IntentQueue;
   private events: Phaser.Events.EventEmitter;
   private gameScene: Phaser.Scene;
+  private gameState: GameState;
 
-  constructor(intents: IntentQueue, events: Phaser.Events.EventEmitter, gameScene: Phaser.Scene) {
+  constructor(intents: IntentQueue, events: Phaser.Events.EventEmitter, gameScene: Phaser.Scene, gameState: GameState) {
     super();
     this.intents = intents;
     this.events = events;
     this.gameScene = gameScene;
+    this.gameState = gameState;
   }
 
   update(_dt: number): void {
@@ -29,15 +31,15 @@ export class ProduceBuildingSystem extends System {
 
     const { cityEntity, buildingType } = produceBuilding.payload;
 
-    // Verify the entity is a city and owned by the human player
+    // Verify the entity is a city and owned by the current active player
     const city = this.world.getComponent(cityEntity, Components.City);
     const owner = this.world.getComponent(cityEntity, Components.Owner);
     if (!city) {
       logger.warn('ProduceBuilding intent received for non-city entity');
       return;
     }
-    if (!owner || owner.playerId !== HUMAN_PLAYER_ID) {
-      logger.warn('ProduceBuilding intent received for city not owned by human player');
+    if (!owner || !this.gameState.isCurrentPlayer(owner.playerId)) {
+      logger.warn('ProduceBuilding intent received for city not owned by current player');
       return;
     }
 

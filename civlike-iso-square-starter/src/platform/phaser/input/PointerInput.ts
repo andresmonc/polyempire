@@ -2,7 +2,6 @@ import { World, Entity } from '@engine/ecs';
 import { worldToTile, isoToWorld } from '@engine/math/iso';
 import { GameState } from '@/state/GameState';
 import { IntentQueue } from '@/state/IntentQueue';
-import { HUMAN_PLAYER_ID } from '@config/game';
 import Phaser from 'phaser';
 import * as Components from '@engine/gameplay/components';
 import { Unit, City, TransformTile, ScreenPos } from '@engine/gameplay/components';
@@ -111,16 +110,16 @@ export class PointerInput {
     const clickedEntity = clickedUnit ?? clickedCity;
 
     if (clickedEntity !== null) {
-      // Check if the clicked entity is owned by the human player
+      // Check if the clicked entity is owned by the current active player
       const owner = this.world.getComponent(clickedEntity, Components.Owner);
-      if (owner && owner.playerId === HUMAN_PLAYER_ID) {
-        // A unit or city was clicked and it's owned by the player, so select it (this will exit move mode)
+      if (owner && this.gameState.isCurrentPlayer(owner.playerId)) {
+        // A unit or city was clicked and it's owned by the current player, so select it (this will exit move mode)
         this.intents.push({
           type: 'SelectEntity',
           payload: { entity: clickedEntity },
         });
       }
-      // If not owned by player, do nothing (can't select enemy/bot entities)
+      // If not owned by current player, do nothing (can't select enemy/bot entities)
     } else {
       // An empty tile was clicked
       if (this.gameState.moveMode && this.gameState.selectedEntity !== null) {

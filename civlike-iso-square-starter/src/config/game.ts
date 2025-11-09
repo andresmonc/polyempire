@@ -59,4 +59,5 @@ export const RESOURCES = {
 
 // --- Game Defaults ---
 export const DEFAULT_CIVILIZATION_ID = 'romans'; // Default civilization ID
-export const HUMAN_PLAYER_ID = 0; // The human player's ID (all other IDs are bots)
+export const HUMAN_PLAYER_ID = 0; // Default player ID for the human player (used for initialization)
+// Note: Systems should use gameState.currentPlayerId instead of this constant for multiplayer support

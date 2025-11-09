@@ -43,8 +43,8 @@ export class PathRequestSystem extends System {
       return;
     }
 
-    // For now, only allow movement for player-owned units
-    if (owner.playerId !== 0) {
+    // Only allow movement for units owned by the current active player
+    if (!this.gameState.isCurrentPlayer(owner.playerId)) {
       return;
     }
 

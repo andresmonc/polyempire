@@ -2,13 +2,12 @@ import { System } from '@engine/ecs';
 import { Selected, Selectable, Owner } from '../components';
 import { GameState } from '@/state/GameState';
 import { IntentQueue, isIntent } from '@/state/IntentQueue';
-import { HUMAN_PLAYER_ID } from '@config/game';
 import Phaser from 'phaser';
 
 /**
  * Handles entity selection based on `SelectEntity` intents.
  * It ensures only one entity is selected at a time.
- * Only allows selection of entities owned by the human player.
+ * Only allows selection of entities owned by the current active player.
  */
 export class SelectionSystem extends System {
   private intents: IntentQueue;
@@ -42,9 +41,9 @@ export class SelectionSystem extends System {
     if (entity !== null && this.world.hasComponent(entity, Selectable)) {
       const owner = this.world.getComponent(entity, Owner);
       
-      // Only allow selection of entities owned by the human player
-      if (owner && owner.playerId !== HUMAN_PLAYER_ID) {
-        // Don't select non-player entities
+      // Only allow selection of entities owned by the current active player
+      if (owner && !this.gameState.isCurrentPlayer(owner.playerId)) {
+        // Don't select entities not owned by current player
         return;
       }
 

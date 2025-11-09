@@ -1,7 +1,6 @@
 import { System } from '@engine/ecs';
 import { GameState } from '@/state/GameState';
 import { IntentQueue, isIntent } from '@/state/IntentQueue';
-import { HUMAN_PLAYER_ID } from '@config/game';
 import * as Components from '@engine/gameplay/components';
 import { logger } from '@/utils/logger';
 import Phaser from 'phaser';
@@ -49,9 +48,9 @@ export class FoundCitySystem extends System {
       return;
     }
 
-    // Only allow human player to found cities
-    if (owner.playerId !== HUMAN_PLAYER_ID) {
-      logger.warn('FoundCity intent received for unit not owned by human player');
+    // Only allow current active player to found cities
+    if (!this.gameState.isCurrentPlayer(owner.playerId)) {
+      logger.warn('FoundCity intent received for unit not owned by current player');
       return;
     }
 

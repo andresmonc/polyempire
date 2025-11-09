@@ -171,10 +171,10 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
 
     const { selectedEntity } = gameState;
     if (selectedEntity !== null) {
-      // Check if the selected entity is owned by the human player
+      // Check if the selected entity is owned by the current active player
       const owner = ecsWorld.getComponent(selectedEntity, Components.Owner);
-      if (!owner || owner.playerId !== 0) {
-        // Not owned by human player - clear all selection UI
+      if (!owner || !gameState.isCurrentPlayer(owner.playerId)) {
+        // Not owned by current player - clear all selection UI
         setSelectedUnit(null);
         setSelectedUnitType(null);
         setSelectedCity(null);
@@ -232,12 +232,12 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
       setSelectedTile(null);
     }
 
-    // Calculate total civilization yields (player 0)
-    if (ecsWorld) {
+    // Calculate total civilization yields for the current active player
+    if (ecsWorld && gameState) {
       const gameScene = game.scene.getScene('GameScene');
       if (gameScene && 'mapData' in gameScene) {
         const map = (gameScene as { mapData: MapData }).mapData;
-        const total = CityYieldsCalculator.calculateTotalYields(ecsWorld, map, 0);
+        const total = CityYieldsCalculator.calculateTotalYields(ecsWorld, map, gameState.currentPlayerId);
         setTotalYields(total);
       }
     }

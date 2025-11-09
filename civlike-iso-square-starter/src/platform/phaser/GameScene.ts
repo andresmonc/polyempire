@@ -281,7 +281,7 @@ export class GameScene extends Phaser.Scene {
     this.ecsWorld.addSystem(new Systems.MoveModeSystem(this.intentQueue, this.gameState, this.game.events));
     this.ecsWorld.addSystem(new Systems.PathRequestSystem(this.intentQueue, this.mapData, this.fogOfWar, this.gameState, this.game.events));
     this.ecsWorld.addSystem(new Systems.MovementSystem(this.mapData));
-    this.ecsWorld.addSystem(new Systems.FogSystem(this.fogOfWar, this.intentQueue));
+    this.ecsWorld.addSystem(new Systems.FogSystem(this.fogOfWar, this.intentQueue, this.gameState));
     this.ecsWorld.addSystem(new Systems.FoundCitySystem(this.intentQueue, this.gameState, this.game.events));
     this.ecsWorld.addSystem(new Systems.CombatSystem(this.intentQueue, this.game.events, this));
     this.ecsWorld.addSystem(new Systems.YieldSystem(this.intentQueue, this.game.events, this.mapData));
@@ -304,11 +304,13 @@ export class GameScene extends Phaser.Scene {
       this.intentQueue,
       this.game.events,
       this,
+      this.gameState,
     ));
     this.ecsWorld.addSystem(new Systems.ProduceBuildingSystem(
       this.intentQueue,
       this.game.events,
       this,
+      this.gameState,
     ));
     this.ecsWorld.addSystem(new Systems.BuildBuildingSystem(
       this.intentQueue,

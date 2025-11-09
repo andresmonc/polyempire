@@ -1,6 +1,7 @@
 import { System } from '@engine/ecs';
 import { FogOfWar } from '@engine/map/FogOfWar';
 import { IntentQueue, isIntent } from '@/state/IntentQueue';
+import { GameState } from '@/state/GameState';
 import { Owner, TransformTile, Unit, City } from '../components';
 
 /**
@@ -11,13 +12,15 @@ import { Owner, TransformTile, Unit, City } from '../components';
 export class FogSystem extends System {
   private fogOfWar: FogOfWar;
   private intents: IntentQueue;
+  private gameState: GameState;
   private lastUnitPositions = new Map<number, string>();
   private lastCityPopulations = new Map<number, number>();
 
-  constructor(fogOfWar: FogOfWar, intents: IntentQueue) {
+  constructor(fogOfWar: FogOfWar, intents: IntentQueue, gameState: GameState) {
     super();
     this.fogOfWar = fogOfWar;
     this.intents = intents;
+    this.gameState = gameState;
   }
 
   update(_dt: number): void {
@@ -63,6 +66,8 @@ export class FogSystem extends System {
     }
 
     if (needsRecompute) {
+      // Filter units and cities owned by the current active player(s)
+      // In multiplayer, this could be extended to show fog for all human players
       const playerUnits = units
         .map(entity => ({
           entity,
@@ -70,7 +75,7 @@ export class FogSystem extends System {
           unit: this.world.getComponent(entity, Unit)!,
           pos: this.world.getComponent(entity, TransformTile)!,
         }))
-        .filter(u => u.owner.playerId === 0); // TODO: Support multiple players/AI
+        .filter(u => this.gameState.isCurrentPlayer(u.owner.playerId));
 
       const playerCities = cities
         .map(entity => ({
@@ -79,7 +84,7 @@ export class FogSystem extends System {
           city: this.world.getComponent(entity, City)!,
           pos: this.world.getComponent(entity, TransformTile)!,
         }))
-        .filter(c => c.owner.playerId === 0); // TODO: Support multiple players/AI
+        .filter(c => this.gameState.isCurrentPlayer(c.owner.playerId));
 
       this.fogOfWar.recompute(
         playerUnits.map(u => ({ pos: { tx: u.pos.tx, ty: u.pos.ty }, sight: u.unit.sight })),
