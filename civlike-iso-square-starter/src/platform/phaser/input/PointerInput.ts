@@ -24,6 +24,14 @@ export class PointerInput {
   }
 
   private handlePointerUp = (pointer: Phaser.Input.Pointer) => {
+    // Check if this was a camera drag (by checking if pointer moved significantly)
+    // We'll let GameScene handle preventing clicks after drags
+    const gameScene = this.scene as any;
+    if (gameScene.isDragging && gameScene.hasMoved) {
+      // This was a drag, not a click - don't process unit selection/movement
+      return;
+    }
+
     if (pointer.rightButtonReleased()) {
       this.handleRightClick();
       return;

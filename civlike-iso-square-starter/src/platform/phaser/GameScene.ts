@@ -36,6 +36,15 @@ export class GameScene extends Phaser.Scene {
   private unitsContainer!: Phaser.GameObjects.Container;
   private pathPreview!: Phaser.GameObjects.Graphics;
   private controls!: Phaser.Cameras.Controls.SmoothedKeyControl;
+  private isDragging = false;
+  private dragStartX = 0;
+  private dragStartY = 0;
+  private cameraStartX = 0;
+  private cameraStartY = 0;
+  private pointerDownX = 0;
+  private pointerDownY = 0;
+  private hasMoved = false;
+  private readonly DRAG_THRESHOLD = 5; // Pixels to move before starting drag
 
   constructor() {
     super('GameScene');
@@ -112,7 +121,7 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.setZoom(CAMERA_ZOOM.DEFAULT);
     this.cameras.main.centerOn(0, 0);
 
-    // Panning controls
+    // Keyboard panning controls
     const cursors = this.input.keyboard!.createCursorKeys();
     const controlConfig = {
       camera: this.cameras.main,
@@ -138,6 +147,103 @@ export class GameScene extends Phaser.Scene {
         );
       },
     );
+
+    // Click-and-drag camera panning (works for mouse and touch)
+    this.setupCameraDrag();
+  }
+
+  private setupCameraDrag() {
+    // Track pointer down
+    this.input.on(Phaser.Input.Events.POINTER_DOWN, (pointer: Phaser.Input.Pointer) => {
+      // Start drag on middle mouse button immediately, or track for left-click/touch drag
+      if (pointer.middleButtonDown()) {
+        // Middle mouse button - start dragging immediately
+        this.isDragging = true;
+        this.dragStartX = pointer.x;
+        this.dragStartY = pointer.y;
+        this.cameraStartX = this.cameras.main.scrollX;
+        this.cameraStartY = this.cameras.main.scrollY;
+      } else if (pointer.leftButtonDown() || pointer.isDown) {
+        // Left click or touch - track initial position, will start drag if moved
+        this.isDragging = false;
+        this.hasMoved = false;
+        this.pointerDownX = pointer.x;
+        this.pointerDownY = pointer.y;
+        this.dragStartX = pointer.x;
+        this.dragStartY = pointer.y;
+        this.cameraStartX = this.cameras.main.scrollX;
+        this.cameraStartY = this.cameras.main.scrollY;
+      }
+    });
+
+    // Track pointer move
+    this.input.on(Phaser.Input.Events.POINTER_MOVE, (pointer: Phaser.Input.Pointer) => {
+      if (pointer.middleButtonDown()) {
+        // Middle mouse button - always drag
+        if (!this.isDragging) {
+          this.isDragging = true;
+          this.dragStartX = pointer.x;
+          this.dragStartY = pointer.y;
+          this.cameraStartX = this.cameras.main.scrollX;
+          this.cameraStartY = this.cameras.main.scrollY;
+        }
+        
+        const deltaX = this.dragStartX - pointer.x;
+        const deltaY = this.dragStartY - pointer.y;
+        
+        this.cameras.main.setScroll(
+          this.cameraStartX + deltaX / this.cameras.main.zoom,
+          this.cameraStartY + deltaY / this.cameras.main.zoom,
+        );
+      } else if (pointer.leftButtonDown() || pointer.isDown) {
+        // Left click or touch - check if moved enough to start drag
+        if (!this.isDragging) {
+          const moveDistance = Math.sqrt(
+            Math.pow(pointer.x - this.pointerDownX, 2) + 
+            Math.pow(pointer.y - this.pointerDownY, 2)
+          );
+          
+          if (moveDistance > this.DRAG_THRESHOLD) {
+            // Moved enough - start dragging
+            this.isDragging = true;
+            this.hasMoved = true;
+            // Update drag start to current position to avoid jump
+            this.dragStartX = pointer.x;
+            this.dragStartY = pointer.y;
+            this.cameraStartX = this.cameras.main.scrollX;
+            this.cameraStartY = this.cameras.main.scrollY;
+          }
+        }
+        
+        if (this.isDragging) {
+          const deltaX = this.dragStartX - pointer.x;
+          const deltaY = this.dragStartY - pointer.y;
+          
+          // Move camera by the drag delta (inverse because we want to drag the world, not the camera)
+          this.cameras.main.setScroll(
+            this.cameraStartX + deltaX / this.cameras.main.zoom,
+            this.cameraStartY + deltaY / this.cameras.main.zoom,
+          );
+        }
+      }
+    });
+
+    // Track pointer up
+    this.input.on(Phaser.Input.Events.POINTER_UP, () => {
+      const wasDragging = this.isDragging && this.hasMoved;
+      this.isDragging = false;
+      // Keep hasMoved true if we were dragging, so PointerInput can check it
+      // It will be reset on next pointer down
+      if (!wasDragging) {
+        this.hasMoved = false;
+      }
+    });
+
+    // Also handle pointer cancel (for touch events that get interrupted)
+    this.input.on(Phaser.Input.Events.POINTER_CANCEL, () => {
+      this.isDragging = false;
+      this.hasMoved = false;
+    });
   }
 
   private initializeInput() {
