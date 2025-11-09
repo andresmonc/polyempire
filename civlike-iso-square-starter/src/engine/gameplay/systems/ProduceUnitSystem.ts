@@ -1,6 +1,8 @@
 import { System } from '@engine/ecs';
 import { IntentQueue, isIntent } from '@/state/IntentQueue';
 import * as Components from '../components';
+import { UnitsData } from '@/utils/unitFactory';
+import { logger } from '@/utils/logger';
 import Phaser from 'phaser';
 
 /**
@@ -29,36 +31,40 @@ export class ProduceUnitSystem extends System {
     // Verify the entity is a city
     const city = this.world.getComponent(cityEntity, Components.City);
     if (!city) {
-      console.warn('ProduceUnit intent received for non-city entity');
+      logger.warn('ProduceUnit intent received for non-city entity');
       return;
     }
 
     // Get production queue
     const queue = this.world.getComponent(cityEntity, Components.ProductionQueue);
     if (!queue) {
-      console.warn('ProduceUnit intent received for city without ProductionQueue');
+      logger.warn('ProduceUnit intent received for city without ProductionQueue');
       return;
     }
 
     // Get base unit data to get production cost
-    const unitsData = (this.gameScene.cache.json.get('units') as any);
-    const baseUnitData = unitsData[unitType];
-    if (!baseUnitData) {
-      console.warn(`Unit type "${unitType}" not found in units.json`);
-      return;
+    try {
+      const unitsData = this.gameScene.cache.json.get('units') as UnitsData;
+      const baseUnitData = unitsData[unitType];
+      if (!baseUnitData) {
+        logger.warn(`Unit type "${unitType}" not found in units.json`);
+        return;
+      }
+
+      const productionCost = baseUnitData.productionCost || 50; // Default cost
+
+      // Add unit to production queue
+      const productionItem: Components.ProductionItem = {
+        type: 'unit',
+        name: unitType,
+        cost: productionCost,
+      };
+
+      queue.enqueue(productionItem);
+      logger.debug(`Added ${unitType} to production queue (cost: ${productionCost})`);
+    } catch (error) {
+      logger.error(`Failed to get unit data for "${unitType}":`, error);
     }
-
-    const productionCost = baseUnitData.productionCost || 50; // Default cost
-
-    // Add unit to production queue
-    const productionItem: Components.ProductionItem = {
-      type: 'unit',
-      name: unitType,
-      cost: productionCost,
-    };
-
-    queue.enqueue(productionItem);
-    console.log(`Added ${unitType} to production queue (cost: ${productionCost})`);
 
     this.events.emit('ui-update');
   }

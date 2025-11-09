@@ -1,9 +1,11 @@
 import { System, Entity } from '@engine/ecs';
 import { IntentQueue, isIntent } from '@/state/IntentQueue';
 import * as Components from '../components';
-import { mergeUnitData, getUnitSpriteKey } from '@engine/civilization/Civilization';
-import { tileToWorld } from '@engine/math/iso';
+import { CivilizationRegistry } from '@engine/civilization/Civilization';
+import { UnitFactory } from '@/utils/unitFactory';
 import { UnitSprite } from '@platform/phaser/sprites/UnitSprite';
+import { DEFAULT_CIVILIZATION_ID } from '@config/game';
+import { logger } from '@/utils/logger';
 import Phaser from 'phaser';
 
 /**
@@ -13,23 +15,19 @@ import Phaser from 'phaser';
 export class ProductionSystem extends System {
   private intents: IntentQueue;
   private events: Phaser.Events.EventEmitter;
-  private gameScene: Phaser.Scene;
-  private civilizationRegistry: any;
-  private unitSprites: Map<number, any>;
+  private unitFactory: UnitFactory;
 
   constructor(
     intents: IntentQueue,
     events: Phaser.Events.EventEmitter,
     gameScene: Phaser.Scene,
-    civilizationRegistry: any,
-    unitSprites: Map<number, any>,
+    civilizationRegistry: CivilizationRegistry,
+    unitSprites: Map<Entity, UnitSprite>,
   ) {
     super();
     this.intents = intents;
     this.events = events;
-    this.gameScene = gameScene;
-    this.civilizationRegistry = civilizationRegistry;
-    this.unitSprites = unitSprites;
+    this.unitFactory = new UnitFactory(this.world, gameScene, civilizationRegistry, unitSprites);
   }
 
   update(_dt: number): void {
@@ -76,12 +74,12 @@ export class ProductionSystem extends System {
         // If there's a next item, start working on it
         const nextItem = queue.getCurrent();
         if (nextItem) {
-          console.log(`City started producing: ${nextItem.name}`);
+          logger.debug(`City started producing: ${nextItem.name}`);
         }
       } else {
         // Show progress
         const remaining = currentItem.cost - queue.currentProgress;
-        console.log(
+        logger.debug(
           `City producing ${currentItem.name}: ${queue.currentProgress}/${currentItem.cost} (${remaining} remaining)`,
         );
       }
@@ -98,7 +96,7 @@ export class ProductionSystem extends System {
       this.completeUnitProduction(cityEntity, item.name);
     } else if (item.type === 'building') {
       // TODO: Implement building production
-      console.log(`Building ${item.name} completed (not yet implemented)`);
+      logger.info(`Building ${item.name} completed (not yet implemented)`);
     }
   }
 
@@ -111,55 +109,21 @@ export class ProductionSystem extends System {
     const civilization = this.world.getComponent(cityEntity, Components.CivilizationComponent);
 
     if (!transform || !owner) {
-      console.warn('Cannot produce unit: city missing required components');
+      logger.warn('Cannot produce unit: city missing required components');
       return;
     }
 
-    const civId = civilization?.civId || 'romans';
-    const civ = this.civilizationRegistry.get(civId);
+    const civId = civilization?.civId || DEFAULT_CIVILIZATION_ID;
+    const unit = this.unitFactory.createUnit(
+      unitType,
+      { tx: transform.tx, ty: transform.ty },
+      owner.playerId,
+      civId,
+    );
 
-    // Get base unit data and apply civilization overrides
-    const unitsData = (this.gameScene.cache.json.get('units') as any);
-    const baseUnitData = unitsData[unitType];
-    if (!baseUnitData) {
-      console.warn(`Unit type "${unitType}" not found in units.json`);
-      return;
+    if (unit) {
+      logger.debug(`Unit ${unitType} produced at city (${transform.tx}, ${transform.ty})`);
     }
-
-    const unitOverride = civ?.units?.[unitType];
-    const mergedUnitData = mergeUnitData(baseUnitData, unitOverride);
-
-    // Get sprite key with civilization override
-    const unitSpriteKey = getUnitSpriteKey('unit', civ?.sprites);
-
-    // Create the unit entity
-    const unit = this.world.createEntity();
-    this.world.addComponent(unit, new Components.TransformTile(transform.tx, transform.ty));
-    this.world.addComponent(unit, new Components.Unit(
-      mergedUnitData.mp,
-      mergedUnitData.mp,
-      mergedUnitData.sightRange,
-      mergedUnitData.health,
-      mergedUnitData.maxHealth,
-      mergedUnitData.attack,
-      mergedUnitData.defense,
-      mergedUnitData.canAttack,
-    ));
-    this.world.addComponent(unit, new Components.UnitType(unitType));
-    this.world.addComponent(unit, new Components.Owner(owner.playerId));
-    this.world.addComponent(unit, new Components.CivilizationComponent(civId));
-    this.world.addComponent(unit, new Components.Selectable());
-
-    // Create ScreenPos for the unit
-    const worldPos = tileToWorld(transform);
-    this.world.addComponent(unit, new Components.ScreenPos(worldPos.x, worldPos.y));
-
-    // Create unit sprite
-    const unitSprite = new UnitSprite(this.gameScene, worldPos.x, worldPos.y, unitSpriteKey);
-    this.gameScene.add.existing(unitSprite);
-    this.unitSprites.set(unit, unitSprite);
-
-    console.log(`Unit ${unitType} produced at city (${transform.tx}, ${transform.ty})`);
   }
 }
 

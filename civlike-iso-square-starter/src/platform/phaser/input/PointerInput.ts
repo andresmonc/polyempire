@@ -27,7 +27,11 @@ export class PointerInput {
   private handlePointerUp = (pointer: Phaser.Input.Pointer) => {
     // Check if this was a camera drag (by checking if pointer moved significantly)
     // We'll let GameScene handle preventing clicks after drags
-    const gameScene = this.scene as any;
+    interface GameSceneWithDrag {
+      isDragging?: boolean;
+      hasMoved?: boolean;
+    }
+    const gameScene = this.scene as GameSceneWithDrag;
     if (gameScene.isDragging && gameScene.hasMoved) {
       // This was a drag, not a click - don't process unit selection/movement
       return;
@@ -158,21 +162,18 @@ export class PointerInput {
   }
 
   /**
-   * Finds a unit by checking if the world point is within any unit sprite's bounds.
+   * Finds an entity by checking if the world point is within any sprite's bounds.
    * This is a fallback for when tile-based detection fails due to coordinate issues.
    */
-  private findUnitBySpriteBounds(worldX: number, worldY: number): Entity | null {
-    // Get the GameScene to access unit sprites
-    if (!('unitSprites' in this.scene)) {
-      return null;
-    }
-
-    const gameScene = this.scene as { unitSprites: Map<Entity, Phaser.GameObjects.Sprite> };
-    const units = this.world.view(Unit, TransformTile);
-    const clickRadius = 32; // Allow clicking within 32 pixels of unit center
-
-    for (const entity of units) {
-      const sprite = gameScene.unitSprites.get(entity);
+  private findEntityBySpriteBounds<T extends Components.TransformTile>(
+    worldX: number,
+    worldY: number,
+    entities: Entity[],
+    spriteMap: Map<Entity, Phaser.GameObjects.GameObject>,
+    clickRadius: number,
+  ): Entity | null {
+    for (const entity of entities) {
+      const sprite = spriteMap.get(entity);
       if (!sprite) continue;
 
       const dx = sprite.x - worldX;
@@ -185,6 +186,24 @@ export class PointerInput {
     }
 
     return null;
+  }
+
+  /**
+   * Finds a unit by checking if the world point is within any unit sprite's bounds.
+   * This is a fallback for when tile-based detection fails due to coordinate issues.
+   */
+  private findUnitBySpriteBounds(worldX: number, worldY: number): Entity | null {
+    interface GameSceneWithSprites {
+      unitSprites?: Map<Entity, Phaser.GameObjects.Sprite>;
+    }
+    const gameScene = this.scene as GameSceneWithSprites;
+    
+    if (!gameScene.unitSprites) {
+      return null;
+    }
+
+    const units = Array.from(this.world.view(Unit, TransformTile));
+    return this.findEntityBySpriteBounds(worldX, worldY, units, gameScene.unitSprites, 32);
   }
 
   /**
@@ -208,28 +227,16 @@ export class PointerInput {
    * This is a fallback for when tile-based detection fails due to coordinate issues.
    */
   private findCityBySpriteBounds(worldX: number, worldY: number): Entity | null {
-    // Get the GameScene to access city sprites
-    if (!('citySprites' in this.scene)) {
+    interface GameSceneWithSprites {
+      citySprites?: Map<Entity, Phaser.GameObjects.Container>;
+    }
+    const gameScene = this.scene as GameSceneWithSprites;
+    
+    if (!gameScene.citySprites) {
       return null;
     }
 
-    const gameScene = this.scene as { citySprites: Map<Entity, Phaser.GameObjects.Container> };
-    const cities = this.world.view(City, TransformTile);
-    const clickRadius = 40; // Allow clicking within 40 pixels of city center
-
-    for (const entity of cities) {
-      const sprite = gameScene.citySprites.get(entity);
-      if (!sprite) continue;
-
-      const dx = sprite.x - worldX;
-      const dy = sprite.y - worldY;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-
-      if (distance < clickRadius) {
-        return entity;
-      }
-    }
-
-    return null;
+    const cities = Array.from(this.world.view(City, TransformTile));
+    return this.findEntityBySpriteBounds(worldX, worldY, cities, gameScene.citySprites, 40);
   }
 }

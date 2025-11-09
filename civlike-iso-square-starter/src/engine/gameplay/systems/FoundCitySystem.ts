@@ -2,6 +2,7 @@ import { System } from '@engine/ecs';
 import { GameState } from '@/state/GameState';
 import { IntentQueue, isIntent } from '@/state/IntentQueue';
 import * as Components from '@engine/gameplay/components';
+import { logger } from '@/utils/logger';
 import Phaser from 'phaser';
 
 /**
@@ -29,21 +30,21 @@ export class FoundCitySystem extends System {
     // Verify the entity is a settler
     const unitType = this.world.getComponent(entity, Components.UnitType);
     if (!unitType || unitType.type !== 'settler') {
-      console.warn('FoundCity intent received for non-settler unit');
+      logger.warn('FoundCity intent received for non-settler unit');
       return;
     }
 
     // Get the settler's position
     const transform = this.world.getComponent(entity, Components.TransformTile);
     if (!transform) {
-      console.warn('FoundCity intent received for unit without TransformTile');
+      logger.warn('FoundCity intent received for unit without TransformTile');
       return;
     }
 
     // Get the settler's owner
     const owner = this.world.getComponent(entity, Components.Owner);
     if (!owner) {
-      console.warn('FoundCity intent received for unit without Owner');
+      logger.warn('FoundCity intent received for unit without Owner');
       return;
     }
 
@@ -68,7 +69,7 @@ export class FoundCitySystem extends System {
       this.world.addComponent(city, new Components.ScreenPos(screenPos.x, screenPos.y));
     }
     
-    console.log(`City founded at (${transform.tx}, ${transform.ty}) with population 1`);
+    logger.info(`City founded at (${transform.tx}, ${transform.ty}) with population 1`);
     
     // Destroy the settler (it's consumed when founding a city)
     this.world.destroyEntity(entity);

@@ -2,8 +2,8 @@ import { System } from '@engine/ecs';
 import { IntentQueue, isIntent } from '@/state/IntentQueue';
 import * as Components from '../components';
 import { MapData } from '@engine/map/MapData';
-import { chebyshevDistance } from '@engine/math/grid';
 import { RESOURCES } from '@config/game';
+import { logger } from '@/utils/logger';
 import Phaser from 'phaser';
 
 /**
@@ -47,7 +47,7 @@ export class YieldSystem extends System {
       // Add yields to city resources
       resources.add(yields.food, yields.production, yields.gold);
 
-      console.log(
+      logger.debug(
         `City at (${transform.tx}, ${transform.ty}) collected: ${yields.food} food, ${yields.production} production, ${yields.gold} gold`,
       );
     }

@@ -1,6 +1,7 @@
 import { System } from '@engine/ecs';
 import { IntentQueue, isIntent } from '@/state/IntentQueue';
 import { City, TransformTile } from '../components';
+import { logger } from '@/utils/logger';
 
 /**
  * Handles city population growth.
@@ -35,7 +36,7 @@ export class CityGrowthSystem extends System {
         city.turnsUntilGrowth = City.getTurnsUntilGrowth(city.population);
         
         const transform = this.world.getComponent(cityEntity, TransformTile)!;
-        console.log(`City at (${transform.tx}, ${transform.ty}) grew to population ${city.population}`);
+        logger.info(`City at (${transform.tx}, ${transform.ty}) grew to population ${city.population}`);
       }
     }
   }

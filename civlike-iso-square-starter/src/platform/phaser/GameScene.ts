@@ -5,7 +5,9 @@ import { IntentQueue } from '@/state/IntentQueue';
 import { MapData } from '@engine/map/MapData';
 import { TerrainRegistry } from '@engine/map/Terrain';
 import { FogOfWar } from '@engine/map/FogOfWar';
-import { CivilizationRegistry, mergeUnitData, getUnitSpriteKey, getCitySpriteKey } from '@engine/civilization/Civilization';
+import { CivilizationRegistry, getCitySpriteKey } from '@engine/civilization/Civilization';
+import { UnitFactory } from '@/utils/unitFactory';
+import { DEFAULT_CIVILIZATION_ID } from '@config/game';
 import * as Systems from '@engine/gameplay/systems';
 import * as Components from '@engine/gameplay/components';
 import { PointerInput } from './input/PointerInput';
@@ -67,7 +69,7 @@ export class GameScene extends Phaser.Scene {
 
     // --- World Creation ---
     this.createTileEntities();
-    this.createInitialUnits(data?.selectedCivId || 'romans');
+    this.createInitialUnits(data?.selectedCivId || DEFAULT_CIVILIZATION_ID);
 
     // Initial fog computation
     this.intentQueue.push({ type: 'TurnBegan' });
@@ -308,49 +310,26 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private createInitialUnits(selectedCivId: string = 'romans') {
+  private createInitialUnits(selectedCivId: string = DEFAULT_CIVILIZATION_ID) {
     this.unitsContainer = this.add.container(0, 0);
     this.pathPreview = this.add.graphics();
     this.unitsContainer.add(this.pathPreview);
 
     const startPos = this.mapData.startPos;
     const civId = selectedCivId;
-    const civilization = this.civilizationRegistry.get(civId);
 
-    // Get base unit data and apply civilization overrides
-    const baseUnitData = this.cache.json.get('units').settler;
-    const unitOverride = civilization?.units?.settler;
-    const mergedUnitData = mergeUnitData(baseUnitData, unitOverride);
+    // Use UnitFactory to create the initial settler
+    const unitFactory = new UnitFactory(
+      this.ecsWorld,
+      this,
+      this.civilizationRegistry,
+      this.unitSprites,
+    );
 
-    // Get sprite key with civilization override
-    const unitSpriteKey = getUnitSpriteKey('unit', civilization?.sprites);
-
-    const settler = this.ecsWorld.createEntity();
-    this.ecsWorld.addComponent(settler, new Components.TransformTile(startPos.tx, startPos.ty));
-    this.ecsWorld.addComponent(settler, new Components.Unit(
-      mergedUnitData.mp,
-      mergedUnitData.mp,
-      mergedUnitData.sightRange,
-      mergedUnitData.health,
-      mergedUnitData.maxHealth,
-      mergedUnitData.attack,
-      mergedUnitData.defense,
-      mergedUnitData.canAttack,
-    ));
-    this.ecsWorld.addComponent(settler, new Components.UnitType('settler'));
-    this.ecsWorld.addComponent(settler, new Components.Owner(0)); // Player 0
-    this.ecsWorld.addComponent(settler, new Components.CivilizationComponent(civId));
-    this.ecsWorld.addComponent(settler, new Components.Selectable());
-
-    // Create ScreenPos immediately so sprite can be positioned correctly
-    const initialWorldPos = tileToWorld(startPos);
-    this.ecsWorld.addComponent(settler, new Components.ScreenPos(initialWorldPos.x, initialWorldPos.y));
-
-    // Add sprite directly to scene, not container, to avoid positioning issues
-    // Use civilization-specific sprite if available, fallback to base sprite
-    const unitSprite = new UnitSprite(this, initialWorldPos.x, initialWorldPos.y, unitSpriteKey);
-    this.add.existing(unitSprite);
-    this.unitSprites.set(settler, unitSprite);
+    const settler = unitFactory.createUnit('settler', { tx: startPos.tx, ty: startPos.ty }, 0, civId);
+    if (!settler) {
+      throw new Error('Failed to create initial settler unit');
+    }
   }
 
   // --- Per-Frame Update Methods ---

@@ -1,7 +1,8 @@
-import { System } from '@engine/ecs';
+import { System, Entity } from '@engine/ecs';
 import { IntentQueue, isIntent } from '@/state/IntentQueue';
 import * as Components from '../components';
 import { COMBAT } from '@config/game';
+import { logger } from '@/utils/logger';
 import Phaser from 'phaser';
 
 /**
@@ -37,13 +38,13 @@ export class CombatSystem extends System {
     const targetUnit = this.world.getComponent(target, Components.Unit);
 
     if (!attackerUnit || !targetUnit) {
-      console.warn('Attack intent received for non-unit entities');
+      logger.warn('Attack intent received for non-unit entities');
       return;
     }
 
     // Check if attacker can attack
     if (!attackerUnit.canAttack) {
-      console.warn('Unit cannot attack');
+      logger.warn('Unit cannot attack');
       return;
     }
 
@@ -52,7 +53,7 @@ export class CombatSystem extends System {
     const targetPos = this.world.getComponent(target, Components.TransformTile);
 
     if (!attackerPos || !targetPos) {
-      console.warn('Attack intent received for units without positions');
+      logger.warn('Attack intent received for units without positions');
       return;
     }
 
@@ -62,7 +63,7 @@ export class CombatSystem extends System {
     const isAdjacent = (dx === 1 && dy === 0) || (dx === 0 && dy === 1);
 
     if (!isAdjacent) {
-      console.warn('Cannot attack: units are not adjacent');
+      logger.warn('Cannot attack: units are not adjacent');
       return;
     }
 
@@ -75,7 +76,7 @@ export class CombatSystem extends System {
     // Show damage number
     this.showDamageNumber(target, damage);
 
-    console.log(
+    logger.debug(
       `Unit attacked: ${damage} damage dealt. Target health: ${targetUnit.health}/${targetUnit.maxHealth}`,
     );
 
@@ -113,7 +114,10 @@ export class CombatSystem extends System {
    */
   private showDamageNumber(unitEntity: Entity, damage: number): void {
     // Get unit sprite position
-    const gameScene = this.gameScene as any;
+    interface GameSceneWithSprites {
+      unitSprites?: Map<Entity, Phaser.GameObjects.Sprite>;
+    }
+    const gameScene = this.gameScene as GameSceneWithSprites;
     const unitSprite = gameScene.unitSprites?.get(unitEntity);
     if (!unitSprite) return;
 
@@ -159,17 +163,21 @@ export class CombatSystem extends System {
    * Destroys a unit when health reaches 0.
    */
   private destroyUnit(entity: Entity): void {
-    console.log('Unit destroyed');
+    logger.debug('Unit destroyed');
     
     // Remove from game state if selected
-    const gameState = (this.gameScene as any).gameState;
-    if (gameState && gameState.selectedEntity === entity) {
-      gameState.selectedEntity = null;
-      gameState.moveMode = false;
+    interface GameSceneWithState {
+      gameState?: { selectedEntity: Entity | null; moveMode: boolean };
+      unitSprites?: Map<Entity, Phaser.GameObjects.Sprite>;
+    }
+    const gameScene = this.gameScene as GameSceneWithState;
+    
+    if (gameScene.gameState && gameScene.gameState.selectedEntity === entity) {
+      gameScene.gameState.selectedEntity = null;
+      gameScene.gameState.moveMode = false;
     }
 
     // Clean up unit sprite immediately
-    const gameScene = this.gameScene as any;
     if (gameScene.unitSprites) {
       const sprite = gameScene.unitSprites.get(entity);
       if (sprite) {

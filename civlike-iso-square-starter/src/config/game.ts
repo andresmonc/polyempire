@@ -56,3 +56,6 @@ export const RESOURCES = {
   // Food required for city growth
   FOOD_PER_POPULATION: 20, // Food needed per population point (for growth)
 };
+
+// --- Game Defaults ---
+export const DEFAULT_CIVILIZATION_ID = 'romans'; // Default civilization ID
