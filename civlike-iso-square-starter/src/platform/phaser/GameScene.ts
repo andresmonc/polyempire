@@ -5,6 +5,7 @@ import { IntentQueue } from '@/state/IntentQueue';
 import { MapData } from '@engine/map/MapData';
 import { TerrainRegistry } from '@engine/map/Terrain';
 import { FogOfWar } from '@engine/map/FogOfWar';
+import { CivilizationRegistry, mergeUnitData, getUnitSpriteKey, getCitySpriteKey } from '@engine/civilization/Civilization';
 import * as Systems from '@engine/gameplay/systems';
 import * as Components from '@engine/gameplay/components';
 import { PointerInput } from './input/PointerInput';
@@ -33,6 +34,7 @@ export class GameScene extends Phaser.Scene {
   private intentQueue!: IntentQueue;
   public mapData!: MapData; // Made public for HUD access
   private fogOfWar!: FogOfWar;
+  private civilizationRegistry!: CivilizationRegistry;
 
   private tileSprites = new Map<Entity, IsoTileSprite>();
   public unitSprites = new Map<Entity, UnitSprite>(); // Made public for PointerInput access
@@ -111,6 +113,9 @@ export class GameScene extends Phaser.Scene {
   private initializeMap() {
     const terrainData = this.cache.json.get('terrains');
     const terrainRegistry = new TerrainRegistry(terrainData);
+
+    const civilizationData = this.cache.json.get('civilizations');
+    this.civilizationRegistry = new CivilizationRegistry(civilizationData);
 
     const mapJson = this.cache.json.get('map');
     this.mapData = new MapData(
@@ -294,14 +299,24 @@ export class GameScene extends Phaser.Scene {
     this.pathPreview = this.add.graphics();
     this.unitsContainer.add(this.pathPreview);
 
-    const unitData = this.cache.json.get('units').settler;
     const startPos = this.mapData.startPos;
+    const civId = 'romans'; // Default civilization for player 0
+    const civilization = this.civilizationRegistry.get(civId);
+
+    // Get base unit data and apply civilization overrides
+    const baseUnitData = this.cache.json.get('units').settler;
+    const unitOverride = civilization?.units?.settler;
+    const mergedUnitData = mergeUnitData(baseUnitData, unitOverride);
+
+    // Get sprite key with civilization override
+    const unitSpriteKey = getUnitSpriteKey('unit', civilization?.sprites);
 
     const settler = this.ecsWorld.createEntity();
     this.ecsWorld.addComponent(settler, new Components.TransformTile(startPos.tx, startPos.ty));
-    this.ecsWorld.addComponent(settler, new Components.Unit(unitData.mp, unitData.mp, unitData.sightRange));
+    this.ecsWorld.addComponent(settler, new Components.Unit(mergedUnitData.mp, mergedUnitData.mp, mergedUnitData.sightRange));
     this.ecsWorld.addComponent(settler, new Components.UnitType('settler'));
     this.ecsWorld.addComponent(settler, new Components.Owner(0)); // Player 0
+    this.ecsWorld.addComponent(settler, new Components.CivilizationComponent(civId));
     this.ecsWorld.addComponent(settler, new Components.Selectable());
 
     // Create ScreenPos immediately so sprite can be positioned correctly
@@ -309,7 +324,8 @@ export class GameScene extends Phaser.Scene {
     this.ecsWorld.addComponent(settler, new Components.ScreenPos(initialWorldPos.x, initialWorldPos.y));
 
     // Add sprite directly to scene, not container, to avoid positioning issues
-    const unitSprite = new UnitSprite(this, initialWorldPos.x, initialWorldPos.y, 'unit');
+    // Use civilization-specific sprite if available, fallback to base sprite
+    const unitSprite = new UnitSprite(this, initialWorldPos.x, initialWorldPos.y, unitSpriteKey);
     this.add.existing(unitSprite);
     this.unitSprites.set(settler, unitSprite);
   }
@@ -377,12 +393,17 @@ export class GameScene extends Phaser.Scene {
     for (const cityEntity of currentCities) {
       const transform = this.ecsWorld.getComponent(cityEntity, Components.TransformTile)!;
       const screenPos = this.ecsWorld.getComponent(cityEntity, Components.ScreenPos);
+      const civilization = this.ecsWorld.getComponent(cityEntity, Components.CivilizationComponent);
       
       let citySprite = this.citySprites.get(cityEntity);
       if (!citySprite) {
-        // Create new city sprite (try to load 'city' texture, fallback to icon)
+        // Get civilization-specific city sprite if available
+        const civ = civilization ? this.civilizationRegistry.get(civilization.civId) : undefined;
+        const citySpriteKey = getCitySpriteKey('city', civ?.sprites);
+        
+        // Create new city sprite (try to load civilization-specific texture, fallback to base 'city' texture, then icon)
         const worldPos = tileToWorld(transform);
-        citySprite = new CitySprite(this, worldPos.x, worldPos.y, 'city');
+        citySprite = new CitySprite(this, worldPos.x, worldPos.y, citySpriteKey);
         this.add.existing(citySprite);
         this.citySprites.set(cityEntity, citySprite);
       } else {

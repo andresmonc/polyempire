@@ -16,6 +16,7 @@ export class BootScene extends Phaser.Scene {
     // Load data files
     this.load.json('terrains', 'data/terrains.json');
     this.load.json('units', 'data/units.json');
+    this.load.json('civilizations', 'data/civilizations.json');
     this.load.json('map', 'data/map.sample.json');
 
     // Load placeholder textures

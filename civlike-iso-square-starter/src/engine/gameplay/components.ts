@@ -80,6 +80,14 @@ export class Owner {
 }
 
 /**
+ * Identifies which civilization this entity belongs to.
+ * Used to apply civilization-specific overrides for units, cities, and sprites.
+ */
+export class CivilizationComponent {
+  constructor(public civId: string) {}
+}
+
+/**
  * Represents a city with population and growth mechanics.
  * Population determines the city's sight range for fog of war.
  * Growth uses a backoff mechanism: 1->2 takes 2 turns, 2->3 takes 4 turns, etc.

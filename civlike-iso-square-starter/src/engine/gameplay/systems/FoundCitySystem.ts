@@ -47,11 +47,17 @@ export class FoundCitySystem extends System {
       return;
     }
 
+    // Get the settler's civilization (if any)
+    const civilization = this.world.getComponent(entity, Components.CivilizationComponent);
+
     // Create a city entity at this location
     const city = this.world.createEntity();
     this.world.addComponent(city, new Components.TransformTile(transform.tx, transform.ty));
     this.world.addComponent(city, new Components.City(1, 0, 2)); // Start with population 1, 0 progress, 2 turns until growth
     this.world.addComponent(city, new Components.Owner(owner.playerId));
+    if (civilization) {
+      this.world.addComponent(city, new Components.CivilizationComponent(civilization.civId));
+    }
     this.world.addComponent(city, new Components.Selectable());
     
     // Create ScreenPos for the city (for potential future rendering)
