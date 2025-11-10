@@ -43,7 +43,7 @@ export class RestGameClient implements IGameClient {
     await this.fetchSession();
   }
 
-  private async fetchSession(): Promise<void> {
+  async fetchSession(): Promise<void> {
     if (!this.connection) throw new Error('Not connected');
 
     try {
@@ -66,18 +66,38 @@ export class RestGameClient implements IGameClient {
       return { success: false, error: 'Not connected to game' };
     }
 
+    // Check if player has already ended their turn (for EndTurn specifically)
+    if (intent.type === 'EndTurn') {
+      const session = this.getSession();
+      if (session && session.playersEndedTurn && session.playersEndedTurn.includes(this.connection.playerId)) {
+        return { success: false, error: 'You have already ended your turn this round' };
+      }
+    }
+
     if (!this.isMyTurn()) {
       return { success: false, error: 'Not your turn' };
     }
 
     try {
-      return await this.httpClient.post<ActionResponse>(
+      const response = await this.httpClient.post<ActionResponse>(
         `/games/${this.connection.sessionId}/actions`,
         {
           playerId: this.connection.playerId,
           intent,
         },
       );
+      
+      // After successfully ending turn, refresh session info immediately
+      if (intent.type === 'EndTurn' && response.success) {
+        try {
+          await this.fetchSession();
+        } catch (error) {
+          // Non-critical - polling will update it soon
+          console.warn('Failed to refresh session after ending turn:', error);
+        }
+      }
+      
+      return response;
     } catch (error) {
       console.error('Failed to submit action:', error);
       return {

@@ -290,6 +290,11 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
   }, [gameState, ecsWorld, gameState?.selectedEntity, gameState?.moveMode, _, game]); // Re-run when selection, move mode, tick, or game changes
 
   const handleEndTurn = () => {
+    // Prevent spamming EndTurn
+    if (gameState?.isMultiplayer && sessionInfo?.playersEndedTurn?.includes(gameState.localPlayerId)) {
+      console.warn('Cannot end turn - already ended this round');
+      return;
+    }
     intentQueue?.push({ type: 'EndTurn' });
   };
 

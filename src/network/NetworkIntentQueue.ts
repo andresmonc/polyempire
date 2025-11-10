@@ -22,6 +22,16 @@ export class NetworkIntentQueue extends IntentQueue {
    * If in local mode, it just adds it to the local queue.
    */
   push(intent: Intent): void {
+    // For EndTurn in multiplayer, check if player already ended their turn
+    if (intent.type === 'EndTurn' && this.gameClient) {
+      const session = this.gameClient.getSession();
+      const connection = this.gameClient.getConnection();
+      if (session && connection && session.playersEndedTurn && session.playersEndedTurn.includes(connection.playerId)) {
+        console.warn('Cannot end turn - already ended this round');
+        return; // Don't add to queue if already ended
+      }
+    }
+
     // Always add to local queue for immediate UI feedback
     this.queue.push(intent);
 
@@ -40,6 +50,12 @@ export class NetworkIntentQueue extends IntentQueue {
             console.warn('Action rejected by server:', response.error);
             // Remove from local queue if server rejected it
             this.removeIntent(intent);
+          } else if (intent.type === 'EndTurn' && response.success) {
+            // After successfully ending turn, refresh session to update UI
+            // The polling will handle this, but we can also trigger it manually
+            if (this.gameClient && 'fetchSession' in this.gameClient) {
+              (this.gameClient as any).fetchSession?.();
+            }
           }
         });
       }
