@@ -202,16 +202,40 @@ export class GameScene extends Phaser.Scene {
         });
         
         // Also poll for session info updates (turn status)
-        setInterval(() => {
+        // Check if player count changed to trigger full state refresh
+        let lastPlayerCount = this.gameClient.getSession()?.players?.length || 0;
+        setInterval(async () => {
           const session = this.gameClient.getSession();
           if (session && this.gameState.isMultiplayer) {
+            const currentPlayerCount = session.players?.length || 0;
+            
+            // If player count increased, force a full state refresh to see new player's units
+            if (currentPlayerCount > lastPlayerCount) {
+              console.log(`[GameScene] Player count changed from ${lastPlayerCount} to ${currentPlayerCount}, requesting full state refresh`);
+              lastPlayerCount = currentPlayerCount;
+              
+              // Request full state update to get new player's units
+              try {
+                const fullStateUpdate = await (this.gameClient as any).getStateUpdate(true);
+                if (fullStateUpdate) {
+                  console.log(`[GameScene] Received full state update after player join with ${fullStateUpdate.fullState?.entities?.length || 0} entities`);
+                  this.handleStateUpdate(fullStateUpdate);
+                }
+              } catch (error) {
+                console.error('Failed to refresh state after player join:', error);
+              }
+            } else if (currentPlayerCount !== lastPlayerCount) {
+              // Player count decreased (player left)
+              lastPlayerCount = currentPlayerCount;
+            }
+            
             this.game.events.emit('session-update', {
               playersEndedTurn: session.playersEndedTurn,
               allPlayersEnded: session.allPlayersEnded,
               isSequentialMode: session.isSequentialMode,
             });
           }
-        }, 2000); // Poll every 2 seconds
+        }, 1500); // Poll every 1.5 seconds (faster to catch new players)
       }
     } else {
       this.gameClient = createGameClient('local');
