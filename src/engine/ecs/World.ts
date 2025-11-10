@@ -1,4 +1,5 @@
-import { Component, ComponentClass, ComponentMap, Entity } from './Entity';
+import { Component } from './Component';
+import { ComponentClass, ComponentMap, Entity } from './Entity';
 import { System } from './System';
 
 /**

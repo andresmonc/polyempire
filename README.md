@@ -1,6 +1,6 @@
-# Civ-like Iso Square Starter
+# PolyEmpire
 
-This is a starter template for a Civilization-style 4X game built with Phaser 3, TypeScript, and Vite. It features a diamond isometric grid on a square logical map and a clean separation between the core game engine and the Phaser rendering platform.
+This is a Civilization-style 4X game built with Phaser 3, TypeScript, and Vite. It features a diamond isometric grid on a square logical map and a clean separation between the core game engine and the Phaser rendering platform.
 
 ## Features
 
@@ -26,7 +26,7 @@ This is a starter template for a Civilization-style 4X game built with Phaser 3,
 1.  Clone the repository:
     ```bash
     git clone <repository-url>
-    cd civlike-iso-square-starter
+    cd polyempire
     ```
 
 2.  Install dependencies:

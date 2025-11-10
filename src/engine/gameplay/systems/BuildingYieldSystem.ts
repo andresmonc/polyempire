@@ -1,4 +1,4 @@
-import { System } from '@engine/ecs';
+import { System, Entity } from '@engine/ecs';
 import { IntentQueue, isIntent } from '@/state/IntentQueue';
 import { GameState } from '@/state/GameState';
 import * as Components from '../components';
