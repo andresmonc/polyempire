@@ -54,8 +54,8 @@ export class RestGameClient implements IGameClient {
       const sessionData = await this.httpClient.get<GameSession>(`/games/${this.connection.sessionId}`);
       this.session = sessionData;
       
-      // Update last update timestamp when we get session info
-      this.lastUpdateTimestamp = sessionData.updatedAt;
+      // Don't update lastUpdateTimestamp here - it should only be updated when we get state updates
+      // Updating it here can cause us to miss turn advancements or get duplicate updates
     } catch (error) {
       console.error('Failed to fetch session:', error);
       throw error;
@@ -137,11 +137,13 @@ export class RestGameClient implements IGameClient {
     const previousTurn = gameState.turn;
     
     // Update game state from server (server is authoritative)
-    // Only update turn if it actually changed to prevent unnecessary updates
-    if (update.turn !== gameState.turn) {
+    // Only update turn if it actually changed to prevent unnecessary updates and desyncs
+    if (update.turn !== undefined && update.turn !== gameState.turn) {
       gameState.turn = update.turn;
     }
-    gameState.currentPlayerId = update.currentPlayerId;
+    if (update.currentPlayerId !== undefined) {
+      gameState.currentPlayerId = update.currentPlayerId;
+    }
 
     // If turn advanced in multiplayer, restore MP and trigger turn-began effects
     if (gameState.isMultiplayer && update.turn > previousTurn) {
