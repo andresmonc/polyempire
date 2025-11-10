@@ -305,21 +305,25 @@ export class GameScene extends Phaser.Scene {
       if (serverEntity.type === 'unit') {
         syncedEntityIds.add(serverEntity.id);
 
-        // Find existing entity by owner and approximate position
-        // (since entity IDs might not match between client and server)
-        const existingEntity = Array.from(this.ecsWorld.view(Components.Unit, Components.Owner)).find(
-          (e) => {
-            const owner = this.ecsWorld.getComponent(e, Components.Owner);
-            const transform = this.ecsWorld.getComponent(e, Components.TransformTile);
-            // Match by owner and close position (within 1 tile)
-            if (owner?.playerId === serverEntity.ownerId && transform) {
-              const dx = Math.abs(transform.tx - serverEntity.position.tx);
-              const dy = Math.abs(transform.ty - serverEntity.position.ty);
-              return dx <= 1 && dy <= 1;
+        // First, try to find existing entity by server entity ID mapping (most reliable)
+        let existingEntity = this.serverEntityIdMap.get(serverEntity.id);
+        
+        // If not found by ID mapping, try to find by owner and position
+        if (!existingEntity) {
+          existingEntity = Array.from(this.ecsWorld.view(Components.Unit, Components.Owner)).find(
+            (e) => {
+              const owner = this.ecsWorld.getComponent(e, Components.Owner);
+              const transform = this.ecsWorld.getComponent(e, Components.TransformTile);
+              // Match by owner and exact position (or very close - within 1 tile)
+              if (owner?.playerId === serverEntity.ownerId && transform) {
+                const dx = Math.abs(transform.tx - serverEntity.position.tx);
+                const dy = Math.abs(transform.ty - serverEntity.position.ty);
+                return dx <= 1 && dy <= 1;
+              }
+              return false;
             }
-            return false;
-          }
-        );
+          );
+        }
 
         if (!existingEntity) {
           // Create new entity from server state
@@ -406,29 +410,42 @@ export class GameScene extends Phaser.Scene {
       }
     });
 
-    // Remove entities that don't exist on server (for other players' units)
+    // Remove entities that don't exist on server (for all players, to prevent duplicates)
     const localUnits = this.ecsWorld.view(Components.Unit, Components.Owner);
     for (const entity of localUnits) {
       const owner = this.ecsWorld.getComponent(entity, Components.Owner);
-      // Only remove other players' units that aren't on server
-      if (owner && owner.playerId !== this.gameState.localPlayerId) {
-        // Check if this entity exists on server (by position and owner)
-        const existsOnServer = fullState.entities.some(
-          e => e.type === 'unit' &&
-               e.ownerId === owner.playerId &&
-               Math.abs(e.position.tx - (this.ecsWorld.getComponent(entity, Components.TransformTile)?.tx || 0)) <= 1 &&
-               Math.abs(e.position.ty - (this.ecsWorld.getComponent(entity, Components.TransformTile)?.ty || 0)) <= 1
-        );
-        
-        if (!existsOnServer) {
-          // Remove entity and sprite
-          const sprite = this.unitSprites.get(entity);
-          if (sprite) {
-            sprite.destroy();
-            this.unitSprites.delete(entity);
-          }
-          this.ecsWorld.destroyEntity(entity);
+      if (!owner) continue;
+      
+      // Check if this entity exists on server
+      // First check by server entity ID mapping (most reliable)
+      const serverEntityId = this.entityIdMap.get(entity);
+      const existsByMapping = serverEntityId !== undefined && syncedEntityIds.has(serverEntityId);
+      
+      // Also check by position and owner (fallback)
+      const transform = this.ecsWorld.getComponent(entity, Components.TransformTile);
+      const existsByPosition = transform && fullState.entities.some(
+        e => e.type === 'unit' &&
+             e.ownerId === owner.playerId &&
+             Math.abs(e.position.tx - transform.tx) <= 1 &&
+             Math.abs(e.position.ty - transform.ty) <= 1
+      );
+      
+      // If entity doesn't exist on server (by either method), remove it
+      // This prevents duplicates, especially for the local player
+      if (!existsByMapping && !existsByPosition) {
+        console.log(`[syncEntitiesFromServer] Removing entity ${entity} for player ${owner.playerId} - not found on server`);
+        // Remove entity and sprite
+        const sprite = this.unitSprites.get(entity);
+        if (sprite) {
+          sprite.destroy();
+          this.unitSprites.delete(entity);
         }
+        // Clean up entity ID mappings
+        if (serverEntityId !== undefined) {
+          this.entityIdMap.delete(entity);
+          this.serverEntityIdMap.delete(serverEntityId);
+        }
+        this.ecsWorld.destroyEntity(entity);
       }
     }
   }
