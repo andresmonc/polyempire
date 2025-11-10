@@ -99,7 +99,7 @@ export function isIntent<T extends Intent['type']>(type: T) {
  * This decouples systems from each other.
  */
 export class IntentQueue {
-  private queue: Intent[] = [];
+  protected queue: Intent[] = [];
 
   /**
    * Adds an intent to the end of the queue.

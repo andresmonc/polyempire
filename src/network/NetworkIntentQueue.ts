@@ -1,4 +1,5 @@
-import { Intent, IntentQueue } from '@/state/IntentQueue';
+import type { Intent } from '@shared/types';
+import { IntentQueue } from '@/state/IntentQueue';
 import { IGameClient } from './GameClient';
 
 /**
@@ -7,8 +8,6 @@ import { IGameClient } from './GameClient';
  */
 export class NetworkIntentQueue extends IntentQueue {
   private gameClient: IGameClient | null = null;
-  private pendingActions = new Map<string, Promise<boolean>>();
-  private actionIdCounter = 0;
 
   /**
    * Set the game client to use for network operations
@@ -36,7 +35,6 @@ export class NetworkIntentQueue extends IntentQueue {
 
       if (!isLocalOnlyIntent && this.gameClient.isMyTurn()) {
         // Submit action asynchronously (fire and forget for now)
-        const actionId = `action-${this.actionIdCounter++}`;
         this.gameClient.submitAction(intent).then(response => {
           if (!response.success) {
             console.warn('Action rejected by server:', response.error);
@@ -80,22 +78,13 @@ export class NetworkIntentQueue extends IntentQueue {
    */
   private removeIntent(intent: Intent): void {
     // Find and remove the intent from the queue
-    const index = this['queue'].findIndex(i => 
+    const index = this.queue.findIndex(i => 
       i.type === intent.type && 
       JSON.stringify(i) === JSON.stringify(intent)
     );
     if (index !== -1) {
-      this['queue'].splice(index, 1);
+      this.queue.splice(index, 1);
     }
-  }
-
-  /**
-   * Wait for all pending actions to complete
-   */
-  async waitForPendingActions(): Promise<void> {
-    const promises = Array.from(this.pendingActions.values());
-    await Promise.all(promises);
-    this.pendingActions.clear();
   }
 }
 

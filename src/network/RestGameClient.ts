@@ -1,4 +1,4 @@
-import { Intent } from '@/state/IntentQueue';
+import type { Intent } from '@shared/types';
 import { GameState } from '@/state/GameState';
 import { World } from '@engine/ecs';
 import { IGameClient } from './GameClient';
@@ -10,6 +10,7 @@ import {
   NetworkConfig,
   SerializedGameState,
 } from './types';
+import { HttpClient } from './HttpClient';
 
 /**
  * REST API game client for multiplayer
@@ -21,6 +22,7 @@ export class RestGameClient implements IGameClient {
   private config: NetworkConfig;
   private pollingInterval: number | null = null;
   private lastUpdateTimestamp: string = '';
+  private httpClient: HttpClient;
 
   constructor(config: NetworkConfig = {}) {
     this.config = {
@@ -28,6 +30,7 @@ export class RestGameClient implements IGameClient {
       pollInterval: config.pollInterval || 2000, // Poll every 2 seconds
       enablePolling: config.enablePolling !== false,
     };
+    this.httpClient = new HttpClient(this.config.apiBaseUrl!);
   }
 
   async initialize(sessionId: string, playerId: number): Promise<void> {
@@ -44,19 +47,10 @@ export class RestGameClient implements IGameClient {
     if (!this.connection) throw new Error('Not connected');
 
     try {
-      const response = await fetch(`${this.config.apiBaseUrl}/games/${this.connection.sessionId}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(this.connection.token && { Authorization: `Bearer ${this.connection.token}` }),
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch session: ${response.statusText}`);
+      if (this.connection.token) {
+        this.httpClient.setDefaultHeader('Authorization', `Bearer ${this.connection.token}`);
       }
-
-      this.session = await response.json();
+      this.session = await this.httpClient.get<GameSession>(`/games/${this.connection.sessionId}`);
     } catch (error) {
       console.error('Failed to fetch session:', error);
       throw error;
@@ -73,31 +67,19 @@ export class RestGameClient implements IGameClient {
     }
 
     try {
-      const response = await fetch(
-        `${this.config.apiBaseUrl}/games/${this.connection.sessionId}/actions`,
+      return await this.httpClient.post<ActionResponse>(
+        `/games/${this.connection.sessionId}/actions`,
         {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(this.connection.token && { Authorization: `Bearer ${this.connection.token}` }),
-          },
-          body: JSON.stringify({
-            playerId: this.connection.playerId,
-            intent,
-          }),
+          playerId: this.connection.playerId,
+          intent,
         },
       );
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: response.statusText }));
-        return { success: false, error: error.error || 'Failed to submit action' };
-      }
-
-      const result: ActionResponse = await response.json();
-      return result;
     } catch (error) {
       console.error('Failed to submit action:', error);
-      return { success: false, error: error instanceof Error ? error.message : 'Network error' };
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Network error',
+      };
     }
   }
 
@@ -105,29 +87,16 @@ export class RestGameClient implements IGameClient {
     if (!this.connection) return null;
 
     try {
-      const response = await fetch(
-        `${this.config.apiBaseUrl}/games/${this.connection.sessionId}/state?since=${this.lastUpdateTimestamp}`,
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(this.connection.token && { Authorization: `Bearer ${this.connection.token}` }),
-          },
-        },
+      const update = await this.httpClient.get<GameStateUpdate>(
+        `/games/${this.connection.sessionId}/state?since=${this.lastUpdateTimestamp}`,
       );
-
-      if (!response.ok) {
-        if (response.status === 304) {
-          // No changes
-          return null;
-        }
-        throw new Error(`Failed to fetch state: ${response.statusText}`);
-      }
-
-      const update: GameStateUpdate = await response.json();
       this.lastUpdateTimestamp = update.timestamp;
       return update;
     } catch (error) {
+      // 304 Not Modified is expected when there are no updates
+      if (error instanceof Error && error.message.includes('304')) {
+        return null;
+      }
       console.error('Failed to fetch state update:', error);
       return null;
     }

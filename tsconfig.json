@@ -20,6 +20,7 @@
       "@config/*": ["src/config/*"],
       "@engine/*": ["src/engine/*"],
       "@platform/*": ["src/platform/*"],
+      "@shared/*": ["shared/*"],
       "@/*": ["src/*"]
     }
   },

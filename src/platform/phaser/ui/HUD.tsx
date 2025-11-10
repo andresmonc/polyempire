@@ -330,6 +330,30 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
     <>
       {/* Top Bar - Civilization Total Yields */}
       <div style={topBarStyle}>
+        {gameState.isMultiplayer && gameState.sessionId && (
+          <div 
+            style={{ 
+              ...yieldItemStyle, 
+              marginRight: '20px', 
+              paddingRight: '20px', 
+              borderRight: '1px solid #444',
+              pointerEvents: 'all',
+              cursor: 'pointer'
+            }}
+            onClick={() => {
+              navigator.clipboard.writeText(gameState.sessionId!);
+              alert('Session ID copied to clipboard!');
+            }}
+            title="Click to copy session ID"
+          >
+            <span style={yieldLabelStyle}>Session ID:</span>
+            <span 
+              style={{ ...yieldValueStyle, fontSize: '12px', fontFamily: 'monospace' }}
+            >
+              {gameState.sessionId.substring(0, 8)}...
+            </span>
+          </div>
+        )}
         <div style={yieldItemStyle}>
           <span style={yieldLabelStyle}>Food:</span>
           <span style={yieldValueStyle}>+{totalYields.food.toFixed(1)}</span>
@@ -353,6 +377,29 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
         <div>
           <strong>Turn: {gameState.turn}</strong>
         </div>
+        {gameState.isMultiplayer && gameState.sessionId && (
+          <div style={{ ...panelStyle, marginTop: '10px', paddingTop: '10px' }}>
+            <div style={{ fontSize: '12px', color: '#aaa', marginBottom: '5px' }}>Multiplayer Session</div>
+            <div 
+              style={{ 
+                fontSize: '11px', 
+                fontFamily: 'monospace', 
+                backgroundColor: 'rgba(255, 255, 255, 0.1)', 
+                padding: '5px', 
+                borderRadius: '3px',
+                cursor: 'pointer',
+                wordBreak: 'break-all'
+              }}
+              onClick={() => {
+                navigator.clipboard.writeText(gameState.sessionId!);
+                alert('Session ID copied to clipboard!');
+              }}
+              title="Click to copy full session ID"
+            >
+              {gameState.sessionId}
+            </div>
+          </div>
+        )}
         <button style={buttonStyle} onClick={handleEndTurn}>
           End Turn
         </button>

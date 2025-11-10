@@ -36,7 +36,9 @@ This is a Civilization-style 4X game built with Phaser 3, TypeScript, and Vite. 
 
 ### Available Scripts
 
--   **`npm run dev`**: Starts the Vite development server with hot reloading. The game will be available at `http://localhost:5173`.
+-   **`npm run dev`**: Starts both the frontend (Vite) and backend (API server) development servers simultaneously. The game will be available at `http://localhost:5173` and the API at `http://localhost:3000`.
+-   **`npm run dev:client`**: Starts only the frontend Vite development server.
+-   **`npm run dev:server`**: Starts only the backend API server.
 -   **`npm run build`**: Compiles TypeScript and builds the project for production in the `dist` folder.
 -   **`npm run preview`**: Serves the production build locally to preview it.
 -   **`npm run test`**: Runs the unit tests using Vitest.

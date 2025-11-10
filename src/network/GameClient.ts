@@ -1,4 +1,4 @@
-import { Intent } from '@/state/IntentQueue';
+import type { Intent } from '@shared/types';
 import { GameState } from '@/state/GameState';
 import { World } from '@engine/ecs';
 import { GameSession, PlayerConnection, ActionResponse, GameStateUpdate, NetworkConfig } from './types';

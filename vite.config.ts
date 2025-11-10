@@ -10,6 +10,7 @@ export default defineConfig({
       '@config': path.resolve(__dirname, './src/config'),
       '@engine': path.resolve(__dirname, './src/engine'),
       '@platform': path.resolve(__dirname, './src/platform'),
+      '@shared': path.resolve(__dirname, './shared'),
       '@': path.resolve(__dirname, './src'),
     },
   },
