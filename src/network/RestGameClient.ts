@@ -209,13 +209,16 @@ export class RestGameClient implements IGameClient {
 
     this.stopPolling(); // Clear any existing polling
 
+    // Poll more frequently to see new players/units quickly
+    const pollInterval = this.config.pollInterval || 1000; // Default 1 second
+
     this.pollingInterval = window.setInterval(async () => {
       // Poll for state updates
       const update = await this.getStateUpdate();
       if (update) {
         callback(update);
       }
-      
+
       // Also periodically refresh session info to get turn status
       try {
         await this.fetchSession();
@@ -223,7 +226,7 @@ export class RestGameClient implements IGameClient {
         // Silently fail - session fetch errors are not critical
         console.warn('Failed to refresh session info:', error);
       }
-    }, this.config.pollInterval);
+    }, pollInterval);
   }
 
   stopPolling(): void {

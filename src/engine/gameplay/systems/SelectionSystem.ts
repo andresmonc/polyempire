@@ -41,10 +41,17 @@ export class SelectionSystem extends System {
     if (entity !== null && this.world.hasComponent(entity, Selectable)) {
       const owner = this.world.getComponent(entity, Owner);
       
-      // Only allow selection of entities owned by the current active player
-      if (owner && !this.gameState.isCurrentPlayer(owner.playerId)) {
-        // Don't select entities not owned by current player
-        return;
+      // In multiplayer, check if this unit belongs to the local player
+      // In single-player, check if it belongs to the current player
+      if (owner) {
+        const canSelect = this.gameState.isMultiplayer
+          ? owner.playerId === this.gameState.localPlayerId
+          : this.gameState.isCurrentPlayer(owner.playerId);
+        
+        if (!canSelect) {
+          // Don't select entities not owned by the player
+          return;
+        }
       }
 
       this.world.addComponent(entity, new Selected());

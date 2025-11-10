@@ -190,8 +190,26 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
     if (selectedEntity !== null) {
       // Check if the selected entity is owned by the current active player
       const owner = ecsWorld.getComponent(selectedEntity, Components.Owner);
-      if (!owner || !gameState.isCurrentPlayer(owner.playerId)) {
-        // Not owned by current player - clear all selection UI
+      if (!owner) {
+        // No owner - clear all selection UI
+        setSelectedUnit(null);
+        setSelectedUnitType(null);
+        setSelectedCity(null);
+        setSelectedCityResources(null);
+        setSelectedCityQueue(null);
+        setSelectedCityYields(null);
+        setSelectedTile(null);
+        return;
+      }
+      
+      // In multiplayer, check if this unit belongs to the local player
+      // In single-player, check if it belongs to the current player
+      const canView = gameState.isMultiplayer
+        ? owner.playerId === gameState.localPlayerId
+        : gameState.isCurrentPlayer(owner.playerId);
+      
+      if (!canView) {
+        // Not owned by player - clear all selection UI
         setSelectedUnit(null);
         setSelectedUnitType(null);
         setSelectedCity(null);
