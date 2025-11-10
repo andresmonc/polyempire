@@ -133,11 +133,14 @@ export class RestGameClient implements IGameClient {
   }
 
   applyStateUpdate(update: GameStateUpdate, world: World, gameState: GameState): void {
-    // Store previous turn to detect turn advancement
+    // Store previous turn to detect turn advancement (before updating)
     const previousTurn = gameState.turn;
     
     // Update game state from server (server is authoritative)
-    gameState.turn = update.turn;
+    // Only update turn if it actually changed to prevent unnecessary updates
+    if (update.turn !== gameState.turn) {
+      gameState.turn = update.turn;
+    }
     gameState.currentPlayerId = update.currentPlayerId;
 
     // If turn advanced in multiplayer, restore MP and trigger turn-began effects

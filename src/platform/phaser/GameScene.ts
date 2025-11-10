@@ -259,20 +259,65 @@ export class GameScene extends Phaser.Scene {
 
     // Apply the state update using the game client
     // This will update turn, currentPlayerId, and trigger TurnBegan if turn advanced
+    // Store previous turn BEFORE applying update to detect changes correctly
     const previousTurn = this.gameState.turn;
     this.gameClient.applyStateUpdate(update, this.ecsWorld, this.gameState);
 
     // If turn advanced in multiplayer, trigger TurnBegan intent for systems
+    // Use update.turn (from server) vs previousTurn (before update) to detect advancement
+    // Don't use gameState.turn here as it may have been updated by applyStateUpdate
     if (this.gameState.isMultiplayer && update.turn > previousTurn) {
       this.intentQueue.push({ type: 'TurnBegan' });
+      this.game.events.emit('ui-update');
     }
 
     // Apply any actions from the update
     // These are actions that other players performed
     update.actions.forEach((intent) => {
-      // Only process actions that aren't from the local player
-      // (local player actions are already processed locally)
-      this.intentQueue.push(intent);
+      // For MoveTo actions from other players, apply them directly to update positions
+      // (don't go through PathRequestSystem which checks ownership)
+      if (intent.type === 'MoveTo' && this.gameState.isMultiplayer) {
+        const serverEntityId = intent.payload.entity;
+        const localEntityId = this.serverEntityIdMap.get(serverEntityId);
+        
+        if (localEntityId !== undefined) {
+          const transform = this.ecsWorld.getComponent(localEntityId, Components.TransformTile);
+          const unit = this.ecsWorld.getComponent(localEntityId, Components.Unit);
+          
+          if (transform && unit) {
+            // Update position directly (server is authoritative)
+            transform.tx = intent.payload.target.tx;
+            transform.ty = intent.payload.target.ty;
+            
+            // Update sprite position
+            const worldPos = tileToWorld(intent.payload.target);
+            const sprite = this.unitSprites.get(localEntityId);
+            if (sprite) {
+              sprite.setPosition(worldPos.x, worldPos.y);
+            }
+            
+            // Update screen position
+            const screenPos = this.ecsWorld.getComponent(localEntityId, Components.ScreenPos);
+            if (screenPos) {
+              screenPos.x = worldPos.x;
+              screenPos.y = worldPos.y;
+            }
+            
+            // Deduct MP (server already did this, but sync it)
+            if (unit.mp > 0) {
+              unit.mp = Math.max(0, unit.mp - 1);
+            }
+            
+            // Clear any existing path (server has moved the unit)
+            unit.path = [];
+          }
+        }
+      } else {
+        // For other actions, add to intent queue
+        // Only process actions that aren't from the local player
+        // (local player actions are already processed locally)
+        this.intentQueue.push(intent);
+      }
     });
 
     // Emit UI update event to refresh the HUD
