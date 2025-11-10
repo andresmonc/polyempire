@@ -2,6 +2,9 @@ import Phaser from 'phaser';
 import { World, Entity } from '@engine/ecs';
 import { GameState } from '@/state/GameState';
 import { IntentQueue } from '@/state/IntentQueue';
+import { NetworkIntentQueue } from '@/network/NetworkIntentQueue';
+import { IGameClient, createGameClient } from '@/network';
+import { GameStateUpdate } from '@/network/types';
 import { MapData } from '@engine/map/MapData';
 import { TerrainRegistry } from '@engine/map/Terrain';
 import { FogOfWar } from '@engine/map/FogOfWar';
@@ -33,7 +36,8 @@ import { chebyshevDistance } from '@engine/math/grid';
 export class GameScene extends Phaser.Scene {
   private ecsWorld!: World;
   private gameState!: GameState;
-  private intentQueue!: IntentQueue;
+  private intentQueue!: NetworkIntentQueue;
+  private gameClient!: IGameClient;
   public mapData!: MapData; // Made public for HUD access
   private fogOfWar!: FogOfWar;
   private civilizationRegistry!: CivilizationRegistry;
@@ -61,9 +65,21 @@ export class GameScene extends Phaser.Scene {
     super('GameScene');
   }
 
-  create(data?: { selectedCivId?: string; bots?: Array<{ civId: string; playerId: number }> }) {
+  async create(data?: { 
+    selectedCivId?: string; 
+    bots?: Array<{ civId: string; playerId: number }>;
+    multiplayer?: boolean;
+    sessionId?: string;
+    playerId?: number;
+    apiBaseUrl?: string;
+  }) {
     // --- Initialization ---
-    this.initializeState();
+    await this.initializeState(
+      data?.multiplayer || false,
+      data?.sessionId,
+      data?.playerId || 0,
+      data?.apiBaseUrl,
+    );
     this.initializeMap();
     this.initializeCamera();
     this.initializeInput();
@@ -124,10 +140,56 @@ export class GameScene extends Phaser.Scene {
 
   // --- Initialization Methods ---
 
-  private initializeState() {
+  private async initializeState(
+    multiplayer: boolean = false,
+    sessionId?: string,
+    playerId: number = 0,
+    apiBaseUrl?: string,
+  ) {
     this.ecsWorld = new World();
     this.gameState = new GameState();
-    this.intentQueue = new IntentQueue();
+    this.gameState.localPlayerId = playerId;
+    this.gameState.isMultiplayer = multiplayer;
+    this.gameState.sessionId = sessionId || null;
+
+    // Create appropriate game client
+    if (multiplayer && sessionId) {
+      this.gameClient = createGameClient('rest', { apiBaseUrl });
+      await this.gameClient.initialize(sessionId, playerId);
+      
+      // Start polling for updates
+      if (this.gameClient.startPolling) {
+        this.gameClient.startPolling((update) => {
+          this.handleStateUpdate(update);
+        });
+      }
+    } else {
+      this.gameClient = createGameClient('local');
+      await this.gameClient.initialize('local-game', playerId);
+    }
+
+    // Create network-aware intent queue
+    this.intentQueue = new NetworkIntentQueue();
+    this.intentQueue.setGameClient(this.gameClient);
+  }
+
+  /**
+   * Handle state updates from the server (for multiplayer games)
+   */
+  private handleStateUpdate(update: GameStateUpdate): void {
+    // Apply the state update using the game client
+    this.gameClient.applyStateUpdate(update, this.ecsWorld, this.gameState);
+
+    // Apply any actions from the update
+    // These are actions that other players performed
+    update.actions.forEach((intent) => {
+      // Only process actions that aren't from the local player
+      // (local player actions are already processed locally)
+      this.intentQueue.push(intent);
+    });
+
+    // Emit UI update event to refresh the HUD
+    this.game.events.emit('ui-update');
   }
 
   private initializeMap() {
@@ -689,6 +751,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateSelectionAndPath() {
+    if (!this.pathPreview) return; // Not initialized yet
     this.pathPreview.clear();
     this.unitSprites.forEach(s => s.clearTint());
 

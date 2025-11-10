@@ -1,19 +1,19 @@
 import Phaser from 'phaser';
 
 /**
- * The start screen scene with a "New Game" button.
+ * Scene for multiplayer menu - create or join games
  */
-export class StartScene extends Phaser.Scene {
+export class MultiplayerMenuScene extends Phaser.Scene {
   constructor() {
-    super('StartScene');
+    super('MultiplayerMenuScene');
   }
 
   create() {
     const { width, height } = this.cameras.main;
 
     // Title
-    const title = this.add.text(width / 2, height / 4, 'PolyEmpire', {
-      fontSize: '64px',
+    const title = this.add.text(width / 2, height / 4, 'Multiplayer', {
+      fontSize: '48px',
       color: '#ffffff',
       fontFamily: 'Arial',
     });
@@ -25,29 +25,46 @@ export class StartScene extends Phaser.Scene {
     const buttonSpacing = 80;
     const startY = height / 2;
 
-    // Single Player button
-    const singlePlayerButton = this.createMenuButton(
+    // Create Game button
+    const createButton = this.createMenuButton(
       width / 2,
       startY,
       buttonWidth,
       buttonHeight,
-      'Single Player',
+      'Create Game',
       () => {
-        this.scene.start('CivilizationSelectionScene', { multiplayer: false });
+        this.scene.start('CreateGameScene');
       },
     );
 
-    // Multiplayer button
-    const multiplayerButton = this.createMenuButton(
+    // Join Game button
+    const joinButton = this.createMenuButton(
       width / 2,
       startY + buttonSpacing,
       buttonWidth,
       buttonHeight,
-      'Multiplayer',
+      'Join Game',
       () => {
-        this.scene.start('MultiplayerMenuScene');
+        this.scene.start('JoinGameScene');
       },
     );
+
+    // Back button
+    const backButton = this.add.text(50, height - 50, '← Back', {
+      fontSize: '24px',
+      color: '#ffffff',
+      fontFamily: 'Arial',
+    });
+    backButton.setInteractive({ useHandCursor: true });
+    backButton.on('pointerdown', () => {
+      this.scene.start('StartScene');
+    });
+    backButton.on('pointerover', () => {
+      backButton.setColor('#aaaaaa');
+    });
+    backButton.on('pointerout', () => {
+      backButton.setColor('#ffffff');
+    });
   }
 
   private createMenuButton(

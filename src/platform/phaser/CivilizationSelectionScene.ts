@@ -13,12 +13,17 @@ export class CivilizationSelectionScene extends Phaser.Scene {
   private selectedCivId: string | null = null;
   private bots: BotConfig[] = [];
   private nextPlayerId = 1; // Player 0 is the human player
+  private isMultiplayer: boolean = false;
 
   constructor() {
     super('CivilizationSelectionScene');
   }
 
-  create() {
+  create(data?: { multiplayer?: boolean }) {
+    // Store multiplayer flag
+    if (data?.multiplayer !== undefined) {
+      this.isMultiplayer = data.multiplayer;
+    }
     const { width, height } = this.cameras.main;
 
     // Title
@@ -253,6 +258,7 @@ export class CivilizationSelectionScene extends Phaser.Scene {
         this.scene.start('GameScene', { 
           selectedCivId: this.selectedCivId,
           bots: this.bots,
+          multiplayer: this.isMultiplayer,
         });
       }
     });

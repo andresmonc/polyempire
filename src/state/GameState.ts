@@ -19,6 +19,22 @@ export class GameState {
    * In multiplayer, this would change based on turn order or be an array for simultaneous turns.
    */
   public currentPlayerId: number = 0;
+
+  /**
+   * The ID of the local player (this client's player)
+   * Used to determine if actions should be sent to the server
+   */
+  public localPlayerId: number = 0;
+
+  /**
+   * Game session ID for multiplayer games
+   */
+  public sessionId: string | null = null;
+
+  /**
+   * Whether the game is in multiplayer mode
+   */
+  public isMultiplayer: boolean = false;
   
   /**
    * Checks if a player ID is the current active player.
@@ -27,5 +43,12 @@ export class GameState {
    */
   public isCurrentPlayer(playerId: number): boolean {
     return playerId === this.currentPlayerId;
+  }
+
+  /**
+   * Checks if the local player is the current active player
+   */
+  public isMyTurn(): boolean {
+    return this.isCurrentPlayer(this.localPlayerId);
   }
 }
