@@ -89,10 +89,13 @@ export class GameStateService {
       case 'MoveTo': {
         const entity = sessionEntities.get(intent.payload.entity);
         if (entity && entity.ownerId === playerId) {
-          entity.position = intent.payload.target;
-          // Deduct movement points
+          // Validate movement points
           const mp = (entity.data.mp as number) || 0;
-          entity.data.mp = Math.max(0, mp - 1);
+          if (mp > 0) {
+            entity.position = intent.payload.target;
+            // Deduct movement points
+            entity.data.mp = Math.max(0, mp - 1);
+          }
         }
         break;
       }

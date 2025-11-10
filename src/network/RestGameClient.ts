@@ -107,13 +107,18 @@ export class RestGameClient implements IGameClient {
     }
   }
 
-  async getStateUpdate(): Promise<GameStateUpdate | null> {
+  async getStateUpdate(includeFullState: boolean = false): Promise<GameStateUpdate | null> {
     if (!this.connection) return null;
 
     try {
-      const update = await this.httpClient.get<GameStateUpdate>(
-        `/games/${this.connection.sessionId}/state?since=${this.lastUpdateTimestamp}`,
-      );
+      let url = `/games/${this.connection.sessionId}/state`;
+      if (!includeFullState && this.lastUpdateTimestamp) {
+        url += `?since=${this.lastUpdateTimestamp}`;
+      } else if (includeFullState) {
+        url += '?fullState=true';
+      }
+      
+      const update = await this.httpClient.get<GameStateUpdate>(url);
       this.lastUpdateTimestamp = update.timestamp;
       return update;
     } catch (error) {

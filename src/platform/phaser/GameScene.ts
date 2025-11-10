@@ -88,32 +88,16 @@ export class GameScene extends Phaser.Scene {
     // --- World Creation ---
     this.createTileEntities();
     
-    // Determine all players (local player + bots + multiplayer players)
-    const allPlayers: Array<{ playerId: number; civId: string }> = [];
-    
     if (data?.multiplayer) {
-      // In multiplayer, get players from session
-      const session = this.gameClient?.getSession();
-      if (session) {
-        session.players.forEach(player => {
-          allPlayers.push({
-            playerId: player.id,
-            civId: player.civilizationId,
-          });
-        });
-      } else {
-        // Fallback: just create for local player
-        allPlayers.push({
-          playerId: data?.playerId || 0,
-          civId: data?.selectedCivId || DEFAULT_CIVILIZATION_ID,
-        });
-      }
+      // In multiplayer, wait for initial state sync from server
+      // The server will send full state with all entities
+      // We'll create units when we receive the first state update
     } else {
-      // Single player: local player + bots
-      allPlayers.push({
+      // Single player: create units locally
+      const allPlayers: Array<{ playerId: number; civId: string }> = [{
         playerId: 0,
         civId: data?.selectedCivId || DEFAULT_CIVILIZATION_ID,
-      });
+      }];
       
       if (data?.bots && data.bots.length > 0) {
         data.bots.forEach(bot => {
@@ -123,10 +107,10 @@ export class GameScene extends Phaser.Scene {
           });
         });
       }
+      
+      // Generate starting positions for all players at once
+      await this.createUnitsForAllPlayers(allPlayers);
     }
-    
-    // Generate starting positions for all players at once
-    await this.createUnitsForAllPlayers(allPlayers);
 
     // Initialize civilizations for initial units to ensure production starts accruing from turn 1
     const initialUnits = this.ecsWorld.view(Components.Unit, Components.Owner, Components.CivilizationComponent);
@@ -223,6 +207,11 @@ export class GameScene extends Phaser.Scene {
    * Handle state updates from the server (for multiplayer games)
    */
   private handleStateUpdate(update: GameStateUpdate): void {
+    // If we have full state, sync entities first (this happens on initial load)
+    if (update.fullState) {
+      this.syncEntitiesFromServer(update.fullState);
+    }
+
     // Apply the state update using the game client
     this.gameClient.applyStateUpdate(update, this.ecsWorld, this.gameState);
 
@@ -236,6 +225,135 @@ export class GameScene extends Phaser.Scene {
 
     // Emit UI update event to refresh the HUD
     this.game.events.emit('ui-update');
+  }
+
+  /**
+   * Synchronize entities from server state
+   */
+  private syncEntitiesFromServer(fullState: {
+    entities: Array<{
+      id: number;
+      ownerId: number;
+      civId: string;
+      type: string;
+      position: { tx: number; ty: number };
+      data: Record<string, unknown>;
+    }>;
+  }): void {
+    // Only sync in multiplayer mode
+    if (!this.gameState.isMultiplayer) return;
+
+    const unitFactory = new UnitFactory(
+      this.ecsWorld,
+      this,
+      this.civilizationRegistry,
+      this.unitSprites,
+    );
+
+    // Track which entities we've synced
+    const syncedEntityIds = new Set<number>();
+
+    fullState.entities.forEach((serverEntity) => {
+      if (serverEntity.type === 'unit') {
+        syncedEntityIds.add(serverEntity.id);
+
+        // Find existing entity by owner and approximate position
+        // (since entity IDs might not match between client and server)
+        const existingEntity = Array.from(this.ecsWorld.view(Components.Unit, Components.Owner)).find(
+          (e) => {
+            const owner = this.ecsWorld.getComponent(e, Components.Owner);
+            const transform = this.ecsWorld.getComponent(e, Components.TransformTile);
+            // Match by owner and close position (within 1 tile)
+            if (owner?.playerId === serverEntity.ownerId && transform) {
+              const dx = Math.abs(transform.tx - serverEntity.position.tx);
+              const dy = Math.abs(transform.ty - serverEntity.position.ty);
+              return dx <= 1 && dy <= 1;
+            }
+            return false;
+          }
+        );
+
+        if (!existingEntity) {
+          // Create new entity from server state
+          const unitType = (serverEntity.data.unitType as string) || 'settler';
+          const entity = unitFactory.createUnit(
+            unitType,
+            serverEntity.position,
+            serverEntity.ownerId,
+            serverEntity.civId,
+          );
+          
+          if (entity) {
+            // Update entity data from server
+            const unit = this.ecsWorld.getComponent(entity, Components.Unit);
+            if (unit) {
+              unit.mp = (serverEntity.data.mp as number) ?? unit.mp;
+              unit.maxMp = (serverEntity.data.maxMp as number) ?? unit.maxMp;
+              unit.health = (serverEntity.data.health as number) ?? unit.health;
+              unit.maxHealth = (serverEntity.data.maxHealth as number) ?? unit.maxHealth;
+            }
+          }
+        } else {
+          // Update existing entity position and data from server
+          const transform = this.ecsWorld.getComponent(existingEntity, Components.TransformTile);
+          const unit = this.ecsWorld.getComponent(existingEntity, Components.Unit);
+          const owner = this.ecsWorld.getComponent(existingEntity, Components.Owner);
+          
+          // Only update if it's not the local player's unit (server is authoritative)
+          // OR if it's another player's unit (always sync)
+          if (owner && owner.playerId !== this.gameState.localPlayerId) {
+            if (transform) {
+              transform.tx = serverEntity.position.tx;
+              transform.ty = serverEntity.position.ty;
+              const worldPos = tileToWorld(serverEntity.position);
+              const screenPos = this.ecsWorld.getComponent(existingEntity, Components.ScreenPos);
+              if (screenPos) {
+                screenPos.x = worldPos.x;
+                screenPos.y = worldPos.y;
+              }
+              // Update sprite position
+              const sprite = this.unitSprites.get(existingEntity);
+              if (sprite) {
+                sprite.setPosition(worldPos.x, worldPos.y);
+              }
+            }
+            
+            if (unit) {
+              unit.mp = (serverEntity.data.mp as number) ?? unit.mp;
+              unit.maxMp = (serverEntity.data.maxMp as number) ?? unit.maxMp;
+              unit.health = (serverEntity.data.health as number) ?? unit.health;
+              unit.maxHealth = (serverEntity.data.maxHealth as number) ?? unit.maxHealth;
+            }
+          }
+        }
+      }
+    });
+
+    // Remove entities that don't exist on server (for other players' units)
+    const localUnits = this.ecsWorld.view(Components.Unit, Components.Owner);
+    for (const entity of localUnits) {
+      const owner = this.ecsWorld.getComponent(entity, Components.Owner);
+      // Only remove other players' units that aren't on server
+      if (owner && owner.playerId !== this.gameState.localPlayerId) {
+        // Check if this entity exists on server (by position and owner)
+        const existsOnServer = fullState.entities.some(
+          e => e.type === 'unit' &&
+               e.ownerId === owner.playerId &&
+               Math.abs(e.position.tx - (this.ecsWorld.getComponent(entity, Components.TransformTile)?.tx || 0)) <= 1 &&
+               Math.abs(e.position.ty - (this.ecsWorld.getComponent(entity, Components.TransformTile)?.ty || 0)) <= 1
+        );
+        
+        if (!existsOnServer) {
+          // Remove entity and sprite
+          const sprite = this.unitSprites.get(entity);
+          if (sprite) {
+            sprite.destroy();
+            this.unitSprites.delete(entity);
+          }
+          this.ecsWorld.destroyEntity(entity);
+        }
+      }
+    }
   }
 
   private initializeMap() {

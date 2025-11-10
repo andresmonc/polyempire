@@ -4,7 +4,6 @@ import { v4 as uuidv4 } from 'uuid';
 import type { IGameSessionRepository } from '../repositories/IGameSessionRepository';
 import { InMemoryGameSessionRepository } from '../repositories/InMemoryGameSessionRepository';
 import { gameStateService } from './GameStateService';
-import { generateStartingPositions } from '../../../shared/startingPositions';
 
 /**
  * Service for managing game sessions
@@ -216,10 +215,10 @@ export class GameSessionService {
       throw new Error('Game not found');
     }
 
-    const actions = await this.repository.getActionsSince(sessionId, since);
+    const actions = await this.repository.getActionsSince(sessionId, since || '');
     
     // Include full state if this is the first request (no since timestamp) or if explicitly requested
-    const includeFullState = !since || actions.length === 0;
+    const includeFullState = !since || since === '';
     
     return {
       actions,
