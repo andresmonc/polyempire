@@ -75,6 +75,10 @@ export class UnitFactory {
 
     // Get civilization and apply overrides
     const civ = this.civilizationRegistry.get(civId);
+    if (!civ) {
+      console.error(`[UnitFactory.createUnit] Civilization ${civId} not found in registry`);
+      return null;
+    }
     const unitOverride = civ?.units?.[unitType];
     const mergedUnitData = mergeUnitData(baseUnitData, unitOverride);
 
@@ -104,12 +108,19 @@ export class UnitFactory {
     this.world.addComponent(unit, new Components.ScreenPos(worldPos.x, worldPos.y));
 
     // Create unit sprite
-    const unitSprite = new UnitSprite(this.gameScene, worldPos.x, worldPos.y, unitSpriteKey);
-    this.gameScene.add.existing(unitSprite);
-    this.unitSprites.set(unit, unitSprite);
-
-    logger.debug(`Unit ${unitType} created at (${position.tx}, ${position.ty})`);
-    return unit;
+    try {
+      const unitSprite = new UnitSprite(this.gameScene, worldPos.x, worldPos.y, unitSpriteKey);
+      this.gameScene.add.existing(unitSprite);
+      this.unitSprites.set(unit, unitSprite);
+      logger.debug(`Unit ${unitType} created at (${position.tx}, ${position.ty})`);
+      console.log(`[UnitFactory.createUnit] Successfully created unit, returning entity ${unit} (type: ${typeof unit}) for player ${ownerId}`);
+      return unit;
+    } catch (error) {
+      console.error(`[UnitFactory.createUnit] Error creating sprite:`, error);
+      // Clean up entity if sprite creation failed
+      this.world.destroyEntity(unit);
+      return null;
+    }
   }
 }
 

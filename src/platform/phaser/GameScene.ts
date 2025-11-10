@@ -83,13 +83,30 @@ export class GameScene extends Phaser.Scene {
       data?.playerId || 0,
       data?.apiBaseUrl,
     );
-    this.initializeMap();
+    this.initializeMap(); // Must be called before requesting initial state (needed for civilizationRegistry)
     this.initializeCamera();
     this.initializeInput();
     this.initializeSystems();
+    
+    // Request initial state after map is initialized (for multiplayer)
+    if (data?.multiplayer && this.gameClient && this.gameClient.getStateUpdate) {
+      console.log('Requesting initial state from server (after map init)...');
+      const initialUpdate = await this.gameClient.getStateUpdate(true);
+      if (initialUpdate) {
+        console.log('Received initial state update');
+        this.handleStateUpdate(initialUpdate);
+      } else {
+        console.warn('No initial state update received from server');
+      }
+    }
 
     // --- World Creation ---
     this.createTileEntities();
+    
+    // Initialize units container (needed for both single and multiplayer)
+    this.unitsContainer = this.add.container(0, 0);
+    this.pathPreview = this.add.graphics();
+    this.unitsContainer.add(this.pathPreview);
     
     if (data?.multiplayer) {
       // In multiplayer, wait for initial state sync from server
@@ -178,7 +195,7 @@ export class GameScene extends Phaser.Scene {
       this.gameClient = createGameClient('rest', { apiBaseUrl });
       await this.gameClient.initialize(sessionId, playerId);
       
-      // Start polling for updates
+      // Start polling for updates (initial state will be requested after map init)
       if (this.gameClient.startPolling) {
         this.gameClient.startPolling((update) => {
           this.handleStateUpdate(update);
@@ -216,8 +233,13 @@ export class GameScene extends Phaser.Scene {
    */
   private handleStateUpdate(update: GameStateUpdate): void {
     // If we have full state, sync entities first (this happens on initial load)
+    console.log('handleStateUpdate - fullState:', !!update.fullState, 'entities:', update.fullState?.entities?.length || 0);
     if (update.fullState) {
+      console.log('Received full state update with', update.fullState.entities.length, 'entities');
       this.syncEntitiesFromServer(update.fullState);
+    } else {
+      console.log('Received state update without full state,', update.actions.length, 'actions');
+      console.log('Update object:', JSON.stringify(update, null, 2));
     }
 
     // Apply the state update using the game client
@@ -251,12 +273,30 @@ export class GameScene extends Phaser.Scene {
     // Only sync in multiplayer mode
     if (!this.gameState.isMultiplayer) return;
 
+    console.log('Syncing entities from server:', fullState.entities.length, 'entities');
+
+    // Ensure civilization registry is initialized (it should be from initializeMap)
+    if (!this.civilizationRegistry) {
+      console.error('civilizationRegistry not initialized yet!');
+      return;
+    }
+
+    // Ensure units container exists
+    if (!this.unitsContainer) {
+      this.unitsContainer = this.add.container(0, 0);
+      this.pathPreview = this.add.graphics();
+      this.unitsContainer.add(this.pathPreview);
+    }
+
     const unitFactory = new UnitFactory(
       this.ecsWorld,
       this,
       this.civilizationRegistry,
       this.unitSprites,
     );
+    
+    // Store reference to unitsContainer in unitFactory if it has a method to set it
+    // (UnitFactory adds sprites directly to scene, which should work, but let's verify)
 
     // Track which entities we've synced
     const syncedEntityIds = new Set<number>();
@@ -284,14 +324,19 @@ export class GameScene extends Phaser.Scene {
         if (!existingEntity) {
           // Create new entity from server state
           const unitType = (serverEntity.data.unitType as string) || 'settler';
+          console.log(`Creating unit ${unitType} for player ${serverEntity.ownerId} (local player: ${this.gameState.localPlayerId}) at (${serverEntity.position.tx}, ${serverEntity.position.ty})`);
+          console.log(`[syncEntitiesFromServer] Before createUnit call`);
           const entity = unitFactory.createUnit(
             unitType,
             serverEntity.position,
             serverEntity.ownerId,
             serverEntity.civId,
           );
+          console.log(`[syncEntitiesFromServer] After createUnit call, entity:`, entity, `type: ${typeof entity}, truthy: ${!!entity}`);
           
-          if (entity) {
+          // Entity is a number, so we need to check for null/undefined, not truthiness (entity 0 is valid!)
+          if (entity !== null && entity !== undefined && typeof entity === 'number') {
+            console.log(`Successfully created entity ${entity} from server state`);
             // Update entity data from server
             const unit = this.ecsWorld.getComponent(entity, Components.Unit);
             if (unit) {
@@ -301,9 +346,25 @@ export class GameScene extends Phaser.Scene {
               unit.maxHealth = (serverEntity.data.maxHealth as number) ?? unit.maxHealth;
             }
             
+            // Verify sprite was created
+            const sprite = this.unitSprites.get(entity);
+            const transform = this.ecsWorld.getComponent(entity, Components.TransformTile);
+            const screenPos = this.ecsWorld.getComponent(entity, Components.ScreenPos);
+            console.log(`Entity ${entity} sprite created:`, !!sprite, sprite ? `at (${sprite.x}, ${sprite.y}), visible: ${sprite.visible}, active: ${sprite.active}` : 'missing');
+            console.log(`Entity ${entity} transform: (${transform?.tx}, ${transform?.ty}), screenPos: (${screenPos?.x}, ${screenPos?.y})`);
+            
+            // If this is the local player's unit, center camera on it
+            if (serverEntity.ownerId === this.gameState.localPlayerId && transform) {
+              const worldPos = tileToWorld(transform);
+              this.cameras.main.centerOn(worldPos.x, worldPos.y);
+              console.log(`Centered camera on local player's unit at (${worldPos.x}, ${worldPos.y})`);
+            }
+            
             // Store server entity ID mapping for this local entity
             this.entityIdMap.set(entity, serverEntity.id);
             this.serverEntityIdMap.set(serverEntity.id, entity);
+          } else {
+            console.error(`Failed to create entity for player ${serverEntity.ownerId}`);
           }
         } else {
           // Update existing entity position and data from server

@@ -155,14 +155,20 @@ router.get('/:id/state', async (req: Request<{ id: string }, GameStateUpdate>, r
   try {
     const { id } = req.params;
     const since = req.query.since as string | undefined;
+    const requestFullState = req.query.fullState === 'true' || req.query.fullState === true;
+    
+    console.log(`[GET /games/${id}/state] Query params:`, { since, fullState: req.query.fullState, requestFullState });
 
     const game = await gameSessionService.getGame(id);
     if (!game) {
       return res.status(404).json({ error: 'Game not found' } as any);
     }
 
-    const sinceTimestamp = since || game.getLastStateUpdate();
+    // If fullState is requested, pass empty string to getStateUpdates to trigger full state
+    const sinceTimestamp = requestFullState ? '' : (since || game.getLastStateUpdate());
+    console.log(`[GET /games/${id}/state] requestFullState: ${requestFullState}, sinceTimestamp: ${sinceTimestamp}`);
     const { actions, lastUpdate, fullState } = await gameSessionService.getStateUpdates(id, sinceTimestamp);
+    console.log(`[GET /games/${id}/state] Returning ${actions.length} actions, fullState: ${!!fullState}, entities: ${fullState?.entities?.length || 0}`);
 
     // If no updates, return 304 Not Modified
     if (actions.length === 0 && since && !fullState) {

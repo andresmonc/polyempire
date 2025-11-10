@@ -44,7 +44,12 @@ export class GameSessionService {
     // Initialize game state with starting positions
     // For now, use a simple approach - in production, you'd load actual map data
     const startingPositions = this.generateStartingPositionsForSession(game, mapWidth, mapHeight);
+    console.log(`[GameSessionService.createGame] Initializing game state with ${startingPositions.length} starting positions`);
     gameStateService.initializeGameState(game, startingPositions);
+    
+    // Verify entities were created
+    const entities = gameStateService.getEntities(sessionId);
+    console.log(`[GameSessionService.createGame] Created ${entities.length} entities for session ${sessionId}`);
 
     return { sessionId, playerId, game };
   }
@@ -219,11 +224,15 @@ export class GameSessionService {
     
     // Include full state if this is the first request (no since timestamp) or if explicitly requested
     const includeFullState = !since || since === '';
+    console.log(`[GameSessionService.getStateUpdates] sessionId: ${sessionId}, since: ${since}, includeFullState: ${includeFullState}`);
+    
+    const fullState = includeFullState ? gameStateService.serializeGameState(sessionId) : undefined;
+    console.log(`[GameSessionService.getStateUpdates] Returning fullState with ${fullState?.entities?.length || 0} entities`);
     
     return {
       actions,
       lastUpdate: game.getLastStateUpdate(),
-      fullState: includeFullState ? gameStateService.serializeGameState(sessionId) : undefined,
+      fullState,
     };
   }
 
