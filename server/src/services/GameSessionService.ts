@@ -1,34 +1,42 @@
 import { GameSessionModel } from '../models/GameSession';
 import type { Intent } from '@shared/types';
 import { v4 as uuidv4 } from 'uuid';
+import type { IGameSessionRepository } from '../repositories/IGameSessionRepository';
+import { InMemoryGameSessionRepository } from '../repositories/InMemoryGameSessionRepository';
 
 /**
  * Service for managing game sessions
  * 
- * NOTE: Currently stores all data in-memory using a Map.
- * This means:
- * - Data is lost when the server restarts
- * - Not suitable for production without persistence
- * - For production, consider adding database persistence (PostgreSQL, MongoDB, etc.)
+ * Uses the Repository pattern for easy database switching:
+ * - InMemoryGameSessionRepository (current) - like H2 in-memory, fast, no setup
+ * - SqliteGameSessionRepository (future) - like H2 file mode, file-based, persistent
+ * - PostgresGameSessionRepository (future) - production database
+ * 
+ * To switch: Just change the repository in the constructor!
  */
 export class GameSessionService {
-  // In-memory storage - data is lost on server restart
-  private sessions = new Map<string, GameSessionModel>();
+  private repository: IGameSessionRepository;
   private nextPlayerId = 1;
+
+  constructor(repository?: IGameSessionRepository) {
+    // Default to in-memory for development (like H2 in-memory mode)
+    // Swap this to SqliteGameSessionRepository or PostgresGameSessionRepository when ready
+    this.repository = repository || new InMemoryGameSessionRepository();
+  }
 
   /**
    * Create a new game session
    */
-  createGame(
+  async createGame(
     name: string,
     playerName: string,
     civilizationId: string,
-  ): { sessionId: string; playerId: number; game: GameSessionModel } {
+  ): Promise<{ sessionId: string; playerId: number; game: GameSessionModel }> {
     const sessionId = uuidv4();
     const playerId = this.nextPlayerId++;
 
     const game = new GameSessionModel(sessionId, name, playerId, playerName, civilizationId);
-    this.sessions.set(sessionId, game);
+    await this.repository.create(game);
 
     return { sessionId, playerId, game };
   }
@@ -36,19 +44,19 @@ export class GameSessionService {
   /**
    * Get a game session by ID
    */
-  getGame(sessionId: string): GameSessionModel | undefined {
-    return this.sessions.get(sessionId);
+  async getGame(sessionId: string): Promise<GameSessionModel | null> {
+    return await this.repository.findById(sessionId);
   }
 
   /**
    * Join an existing game
    */
-  joinGame(
+  async joinGame(
     sessionId: string,
     playerName: string,
     civilizationId: string,
-  ): { playerId: number; game: GameSessionModel } {
-    const game = this.sessions.get(sessionId);
+  ): Promise<{ playerId: number; game: GameSessionModel }> {
+    const game = await this.repository.findById(sessionId);
     if (!game) {
       throw new Error('Game not found');
     }
@@ -59,6 +67,7 @@ export class GameSessionService {
 
     const playerId = this.nextPlayerId++;
     game.addPlayer(playerId, playerName, civilizationId);
+    await this.repository.update(game);
 
     return { playerId, game };
   }
@@ -66,8 +75,8 @@ export class GameSessionService {
   /**
    * Submit an action to a game
    */
-  submitAction(sessionId: string, playerId: number, intent: Intent): void {
-    const game = this.sessions.get(sessionId);
+  async submitAction(sessionId: string, playerId: number, intent: Intent): Promise<void> {
+    const game = await this.repository.findById(sessionId);
     if (!game) {
       throw new Error('Game not found');
     }
@@ -83,27 +92,33 @@ export class GameSessionService {
     }
 
     // Record the action
+    const timestamp = new Date().toISOString();
+    await this.repository.recordAction(sessionId, playerId, intent, timestamp);
+    // Also update in-memory model for quick access
     game.recordAction(playerId, intent);
 
     // Handle turn advancement
     if (intent.type === 'EndTurn') {
       game.nextTurn();
     }
+
+    // Update game state
+    await this.repository.update(game);
   }
 
   /**
    * Get game state updates since a timestamp
    */
-  getStateUpdates(sessionId: string, since: string): {
+  async getStateUpdates(sessionId: string, since: string): Promise<{
     actions: Array<{ playerId: number; intent: Intent; timestamp: string }>;
     lastUpdate: string;
-  } {
-    const game = this.sessions.get(sessionId);
+  }> {
+    const game = await this.repository.findById(sessionId);
     if (!game) {
       throw new Error('Game not found');
     }
 
-    const actions = game.getActionsSince(since);
+    const actions = await this.repository.getActionsSince(sessionId, since);
     return {
       actions,
       lastUpdate: game.getLastStateUpdate(),
@@ -113,14 +128,15 @@ export class GameSessionService {
   /**
    * Clean up old/finished games (for memory management)
    */
-  cleanup(): void {
+  async cleanup(): Promise<void> {
     const now = Date.now();
     const maxAge = 24 * 60 * 60 * 1000; // 24 hours
 
-    for (const [id, game] of this.sessions.entries()) {
+    const allGames = await this.repository.findAll();
+    for (const game of allGames) {
       const gameAge = now - new Date(game.createdAt).getTime();
       if (game.status === 'finished' && gameAge > maxAge) {
-        this.sessions.delete(id);
+        await this.repository.delete(game.id);
       }
     }
   }

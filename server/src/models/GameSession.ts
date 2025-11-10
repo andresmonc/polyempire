@@ -75,7 +75,8 @@ export class GameSessionModel implements IGameSession {
   }
 
   /**
-   * Record an action
+   * Record an action (for in-memory tracking)
+   * Note: The repository also stores actions, this is for quick access
    */
   recordAction(playerId: number, intent: Intent): void {
     this.actionHistory.push({
@@ -88,7 +89,8 @@ export class GameSessionModel implements IGameSession {
   }
 
   /**
-   * Get actions since a timestamp
+   * Get actions since a timestamp (for in-memory access)
+   * Note: The repository is the source of truth, this is for quick access
    */
   getActionsSince(timestamp: string): Array<{ playerId: number; intent: Intent; timestamp: string }> {
     return this.actionHistory.filter(action => action.timestamp > timestamp);

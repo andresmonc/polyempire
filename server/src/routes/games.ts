@@ -17,7 +17,7 @@ const router = Router();
  * POST /api/games
  * Create a new game session
  */
-router.post('/', (req: Request<{}, CreateGameResponse, CreateGameRequest>, res: Response) => {
+router.post('/', async (req: Request<{}, CreateGameResponse, CreateGameRequest>, res: Response) => {
   try {
     const { name, playerName, civilizationId } = req.body;
 
@@ -25,7 +25,7 @@ router.post('/', (req: Request<{}, CreateGameResponse, CreateGameRequest>, res: 
       return res.status(400).json({ error: 'Missing required fields' } as any);
     }
 
-    const { sessionId, playerId, game } = gameSessionService.createGame(
+    const { sessionId, playerId, game } = await gameSessionService.createGame(
       name,
       playerName,
       civilizationId,
@@ -45,10 +45,10 @@ router.post('/', (req: Request<{}, CreateGameResponse, CreateGameRequest>, res: 
  * GET /api/games/:id
  * Get game session info
  */
-router.get('/:id', (req: Request<{ id: string }>, res: Response) => {
+router.get('/:id', async (req: Request<{ id: string }>, res: Response) => {
   try {
     const { id } = req.params;
-    const game = gameSessionService.getGame(id);
+    const game = await gameSessionService.getGame(id);
 
     if (!game) {
       return res.status(404).json({ error: 'Game not found' } as any);
@@ -66,7 +66,7 @@ router.get('/:id', (req: Request<{ id: string }>, res: Response) => {
  */
 router.post(
   '/:id/join',
-  (req: Request<{ id: string }, JoinGameResponse, JoinGameRequest>, res: Response) => {
+  async (req: Request<{ id: string }, JoinGameResponse, JoinGameRequest>, res: Response) => {
     try {
       const { id } = req.params;
       const { playerName, civilizationId } = req.body;
@@ -75,7 +75,7 @@ router.post(
         return res.status(400).json({ error: 'Missing required fields' } as any);
       }
 
-      const { playerId, game } = gameSessionService.joinGame(id, playerName, civilizationId);
+      const { playerId, game } = await gameSessionService.joinGame(id, playerName, civilizationId);
 
       res.json({
         playerId,
@@ -100,7 +100,7 @@ router.post(
  */
 router.post(
   '/:id/actions',
-  (req: Request<{ id: string }, ActionResponse, SubmitActionRequest>, res: Response) => {
+  async (req: Request<{ id: string }, ActionResponse, SubmitActionRequest>, res: Response) => {
     try {
       const { id } = req.params;
       const { playerId, intent } = req.body;
@@ -122,9 +122,9 @@ router.post(
       }
 
       // Submit action
-      gameSessionService.submitAction(id, playerId, intent);
+      await gameSessionService.submitAction(id, playerId, intent);
 
-      const game = gameSessionService.getGame(id);
+      const game = await gameSessionService.getGame(id);
       if (!game) {
         return res.status(404).json({
           success: false,
@@ -150,18 +150,18 @@ router.post(
  * GET /api/games/:id/state
  * Get game state updates (with polling support)
  */
-router.get('/:id/state', (req: Request<{ id: string }, GameStateUpdate>, res: Response) => {
+router.get('/:id/state', async (req: Request<{ id: string }, GameStateUpdate>, res: Response) => {
   try {
     const { id } = req.params;
     const since = req.query.since as string | undefined;
 
-    const game = gameSessionService.getGame(id);
+    const game = await gameSessionService.getGame(id);
     if (!game) {
       return res.status(404).json({ error: 'Game not found' } as any);
     }
 
     const sinceTimestamp = since || game.getLastStateUpdate();
-    const { actions, lastUpdate } = gameSessionService.getStateUpdates(id, sinceTimestamp);
+    const { actions, lastUpdate } = await gameSessionService.getStateUpdates(id, sinceTimestamp);
 
     // If no updates, return 304 Not Modified
     if (actions.length === 0 && since) {

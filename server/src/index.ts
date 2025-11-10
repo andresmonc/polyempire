@@ -12,7 +12,7 @@ app.listen(PORT, () => {
 });
 
 // Periodic cleanup of old games
-setInterval(() => {
-  gameSessionService.cleanup();
+setInterval(async () => {
+  await gameSessionService.cleanup();
 }, 60 * 60 * 1000); // Every hour
 
