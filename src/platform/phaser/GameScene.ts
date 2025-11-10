@@ -258,7 +258,14 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Apply the state update using the game client
+    // This will update turn, currentPlayerId, and trigger TurnBegan if turn advanced
+    const previousTurn = this.gameState.turn;
     this.gameClient.applyStateUpdate(update, this.ecsWorld, this.gameState);
+
+    // If turn advanced in multiplayer, trigger TurnBegan intent for systems
+    if (this.gameState.isMultiplayer && update.turn > previousTurn) {
+      this.intentQueue.push({ type: 'TurnBegan' });
+    }
 
     // Apply any actions from the update
     // These are actions that other players performed

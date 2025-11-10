@@ -9,8 +9,9 @@ import {
   GameStateUpdate,
   NetworkConfig,
   SerializedGameState,
-} from './types';
+} from '@shared/types';
 import { HttpClient } from './HttpClient';
+import * as Components from '@engine/gameplay/components';
 
 /**
  * REST API game client for multiplayer
@@ -132,13 +133,34 @@ export class RestGameClient implements IGameClient {
   }
 
   applyStateUpdate(update: GameStateUpdate, world: World, gameState: GameState): void {
-    // Update game state
+    // Store previous turn to detect turn advancement
+    const previousTurn = gameState.turn;
+    
+    // Update game state from server (server is authoritative)
     gameState.turn = update.turn;
     gameState.currentPlayerId = update.currentPlayerId;
 
+    // If turn advanced in multiplayer, restore MP and trigger turn-began effects
+    if (gameState.isMultiplayer && update.turn > previousTurn) {
+      // Restore MP for all units when turn advances
+      const units = world.view(Components.Unit);
+      for (const entity of units) {
+        const unit = world.getComponent(entity, Components.Unit);
+        if (unit) {
+          unit.mp = unit.maxMp;
+        }
+      }
+
+      // Remove NewlyPurchased component from all units
+      const newlyPurchasedUnits = world.view(Components.NewlyPurchased);
+      for (const entity of newlyPurchasedUnits) {
+        world.removeComponent(entity, Components.NewlyPurchased);
+      }
+    }
+
     // If we have full state, apply it (this happens on initial load or when state needs to be synced)
     if (update.fullState) {
-      this.applyFullState(update.fullState, world, gameState);
+      // This is handled by GameScene.syncEntitiesFromServer now
     }
 
     // Apply actions from the update

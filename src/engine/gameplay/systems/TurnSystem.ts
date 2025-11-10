@@ -30,7 +30,12 @@ export class TurnSystem extends System {
     const endTurnIntent = this.intents.pop(isIntent('EndTurn'));
 
     if (endTurnIntent) {
-      this.gameState.turn++;
+      // In multiplayer, don't increment turn locally - wait for server to tell us
+      // The server is authoritative for turn advancement
+      if (!this.gameState.isMultiplayer) {
+        this.gameState.turn++;
+      }
+      // In multiplayer, the turn will be updated from server state updates
 
       // Restore MP for all units
       const units = this.world.view(Unit);
@@ -45,9 +50,12 @@ export class TurnSystem extends System {
         this.world.removeComponent(entity, NewlyPurchased);
       }
 
-      // Signal that a new turn has begun
-      this.intents.push({ type: 'TurnBegan' });
-      this.events.emit('ui-update');
+      // Signal that a new turn has begun (only if we actually advanced the turn)
+      // In multiplayer, TurnBegan will be triggered when server confirms turn advancement
+      if (!this.gameState.isMultiplayer) {
+        this.intents.push({ type: 'TurnBegan' });
+        this.events.emit('ui-update');
+      }
     }
   }
 }
