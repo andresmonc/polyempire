@@ -38,6 +38,9 @@ export class GameScene extends Phaser.Scene {
   private gameState!: GameState;
   private intentQueue!: NetworkIntentQueue;
   private gameClient!: IGameClient;
+  // Map local entity IDs to server entity IDs for multiplayer sync
+  private entityIdMap = new Map<number, number>(); // localEntityId -> serverEntityId
+  private serverEntityIdMap = new Map<number, number>(); // serverEntityId -> localEntityId
   public mapData!: MapData; // Made public for HUD access
   private fogOfWar!: FogOfWar;
   private civilizationRegistry!: CivilizationRegistry;
@@ -201,6 +204,11 @@ export class GameScene extends Phaser.Scene {
     // Create network-aware intent queue
     this.intentQueue = new NetworkIntentQueue();
     this.intentQueue.setGameClient(this.gameClient);
+    
+    // Expose entity ID mapping to game client for intent translation
+    if (this.gameClient && 'entityIdMap' in this.gameClient) {
+      (this.gameClient as any).entityIdMap = this.entityIdMap;
+    }
   }
 
   /**
@@ -292,12 +300,20 @@ export class GameScene extends Phaser.Scene {
               unit.health = (serverEntity.data.health as number) ?? unit.health;
               unit.maxHealth = (serverEntity.data.maxHealth as number) ?? unit.maxHealth;
             }
+            
+            // Store server entity ID mapping for this local entity
+            this.entityIdMap.set(entity, serverEntity.id);
+            this.serverEntityIdMap.set(serverEntity.id, entity);
           }
         } else {
           // Update existing entity position and data from server
           const transform = this.ecsWorld.getComponent(existingEntity, Components.TransformTile);
           const unit = this.ecsWorld.getComponent(existingEntity, Components.Unit);
           const owner = this.ecsWorld.getComponent(existingEntity, Components.Owner);
+          
+          // Update entity ID mapping
+          this.entityIdMap.set(existingEntity, serverEntity.id);
+          this.serverEntityIdMap.set(serverEntity.id, existingEntity);
           
           // Only update if it's not the local player's unit (server is authoritative)
           // OR if it's another player's unit (always sync)

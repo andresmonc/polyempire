@@ -46,8 +46,11 @@ export class NetworkIntentQueue extends IntentQueue {
                                 intent.type === 'TurnBegan';
 
       if (!isLocalOnlyIntent && this.gameClient.isMyTurn()) {
+        // Translate entity IDs for multiplayer (local -> server)
+        const translatedIntent = this.translateEntityIds(intent);
+        
         // Submit action asynchronously (fire and forget for now)
-        this.gameClient.submitAction(intent).then(response => {
+        this.gameClient.submitAction(translatedIntent).then(response => {
           if (!response.success) {
             console.warn('Action rejected by server:', response.error);
             // Remove from local queue if server rejected it
@@ -62,6 +65,65 @@ export class NetworkIntentQueue extends IntentQueue {
         });
       }
     }
+  }
+
+  /**
+   * Translate local entity IDs to server entity IDs for multiplayer
+   */
+  private translateEntityIds(intent: Intent): Intent {
+    // Get entity ID mapping from game client if available
+    const gameClient = this.gameClient as any;
+    const entityIdMap = gameClient?.entityIdMap;
+    
+    if (!entityIdMap || !(entityIdMap instanceof Map)) {
+      // No mapping available, return as-is
+      return intent;
+    }
+    
+    // Translate entity IDs based on intent type
+    switch (intent.type) {
+      case 'MoveTo':
+        const serverEntityId = entityIdMap.get(intent.payload.entity);
+        if (serverEntityId !== undefined) {
+          return {
+            ...intent,
+            payload: {
+              ...intent.payload,
+              entity: serverEntityId,
+            },
+          };
+        }
+        break;
+      case 'FoundCity':
+        const serverCityEntityId = entityIdMap.get(intent.payload.entity);
+        if (serverCityEntityId !== undefined) {
+          return {
+            ...intent,
+            payload: {
+              ...intent.payload,
+              entity: serverCityEntityId,
+            },
+          };
+        }
+        break;
+      case 'Attack':
+        const serverAttackerId = entityIdMap.get(intent.payload.attacker);
+        const serverTargetId = entityIdMap.get(intent.payload.target);
+        if (serverAttackerId !== undefined && serverTargetId !== undefined) {
+          return {
+            ...intent,
+            payload: {
+              ...intent.payload,
+              attacker: serverAttackerId,
+              target: serverTargetId,
+            },
+          };
+        }
+        break;
+      // Other intents don't need translation
+    }
+    
+    return intent;
   }
 
   /**
