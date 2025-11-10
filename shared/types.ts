@@ -166,7 +166,16 @@ export interface GameStateUpdate {
   turn: number;
   currentPlayerId: number;
   actions: Intent[]; // Actions that occurred since last update
-  fullState?: SerializedGameState; // Full state if needed
+  fullState?: {
+    entities: Array<{
+      id: number;
+      ownerId: number;
+      civId: string;
+      type: string;
+      position: { tx: number; ty: number };
+      data: Record<string, unknown>;
+    }>;
+  }; // Full state if needed
   timestamp: string;
 }
 

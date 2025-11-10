@@ -131,15 +131,48 @@ export class RestGameClient implements IGameClient {
     gameState.turn = update.turn;
     gameState.currentPlayerId = update.currentPlayerId;
 
+    // If we have full state, apply it (this happens on initial load or when state needs to be synced)
+    if (update.fullState) {
+      this.applyFullState(update.fullState, world, gameState);
+    }
+
     // Apply actions from the update
-    // Note: In a full implementation, you'd need to deserialize and apply the full state
-    // For now, we'll rely on the actions array to replay what happened
+    // Note: Actions are already applied on the server, but we need to apply them locally too
+    // for immediate feedback. The full state sync will correct any desyncs.
 
     // Update session info
     if (this.session) {
       this.session.currentTurn = update.turn;
       this.session.currentPlayerId = update.currentPlayerId;
       this.session.updatedAt = update.timestamp;
+    }
+  }
+
+  /**
+   * Apply full game state from server (synchronize entities)
+   */
+  private applyFullState(
+    fullState: {
+      entities: Array<{
+        id: number;
+        ownerId: number;
+        civId: string;
+        type: string;
+        position: { tx: number; ty: number };
+        data: Record<string, unknown>;
+      }>;
+    },
+    world: World,
+    gameState: GameState,
+  ): void {
+    // This will be called from GameScene to properly sync entities
+    // For now, we'll emit an event that GameScene can listen to
+    if (typeof window !== 'undefined' && window.dispatchEvent) {
+      window.dispatchEvent(
+        new CustomEvent('game-state-sync', {
+          detail: { fullState },
+        }),
+      );
     }
   }
 

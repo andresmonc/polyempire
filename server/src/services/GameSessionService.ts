@@ -3,6 +3,8 @@ import type { Intent } from '@shared/types';
 import { v4 as uuidv4 } from 'uuid';
 import type { IGameSessionRepository } from '../repositories/IGameSessionRepository';
 import { InMemoryGameSessionRepository } from '../repositories/InMemoryGameSessionRepository';
+import { gameStateService } from './GameStateService';
+import { generateStartingPositions } from '../../../shared/startingPositions';
 
 /**
  * Service for managing game sessions
@@ -31,6 +33,8 @@ export class GameSessionService {
     name: string,
     playerName: string,
     civilizationId: string,
+    mapWidth: number = 50,
+    mapHeight: number = 50,
   ): Promise<{ sessionId: string; playerId: number; game: GameSessionModel }> {
     const sessionId = uuidv4();
     const playerId = this.nextPlayerId++;
@@ -38,7 +42,45 @@ export class GameSessionService {
     const game = new GameSessionModel(sessionId, name, playerId, playerName, civilizationId);
     await this.repository.create(game);
 
+    // Initialize game state with starting positions
+    // For now, use a simple approach - in production, you'd load actual map data
+    const startingPositions = this.generateStartingPositionsForSession(game, mapWidth, mapHeight);
+    gameStateService.initializeGameState(game, startingPositions);
+
     return { sessionId, playerId, game };
+  }
+
+  /**
+   * Generate starting positions for all players in a session
+   */
+  private generateStartingPositionsForSession(
+    game: GameSessionModel,
+    mapWidth: number,
+    mapHeight: number,
+  ): Array<{ playerId: number; position: { tx: number; ty: number } }> {
+    // Simple circular placement for now
+    // In production, you'd use the actual map data and terrain
+    const positions: Array<{ playerId: number; position: { tx: number; ty: number } }> = [];
+    const centerX = Math.floor(mapWidth / 2);
+    const centerY = Math.floor(mapHeight / 2);
+    const radius = Math.min(mapWidth, mapHeight) * 0.3;
+
+    game.players.forEach((player, index) => {
+      const angle = (index * 2 * Math.PI) / game.players.length;
+      const tx = Math.floor(centerX + radius * Math.cos(angle));
+      const ty = Math.floor(centerY + radius * Math.sin(angle));
+      
+      // Clamp to valid bounds
+      const clampedTx = Math.max(2, Math.min(mapWidth - 3, tx));
+      const clampedTy = Math.max(2, Math.min(mapHeight - 3, ty));
+
+      positions.push({
+        playerId: player.id,
+        position: { tx: clampedTx, ty: clampedTy },
+      });
+    });
+
+    return positions;
   }
 
   /**
@@ -55,6 +97,8 @@ export class GameSessionService {
     sessionId: string,
     playerName: string,
     civilizationId: string,
+    mapWidth: number = 50,
+    mapHeight: number = 50,
   ): Promise<{ playerId: number; game: GameSessionModel }> {
     const game = await this.repository.findById(sessionId);
     if (!game) {
@@ -67,6 +111,36 @@ export class GameSessionService {
 
     const playerId = this.nextPlayerId++;
     game.addPlayer(playerId, playerName, civilizationId);
+    
+    // If game state hasn't been initialized yet, initialize it now
+    const existingEntities = gameStateService.getEntities(sessionId);
+    if (existingEntities.length === 0) {
+      // Generate starting positions for all players including the new one
+      const startingPositions = this.generateStartingPositionsForSession(game, mapWidth, mapHeight);
+      gameStateService.initializeGameState(game, startingPositions);
+    } else {
+      // Add starting unit for the new player
+      const startingPositions = this.generateStartingPositionsForSession(game, mapWidth, mapHeight);
+      const newPlayerPosition = startingPositions.find(p => p.playerId === playerId);
+      if (newPlayerPosition) {
+        gameStateService.createEntity(
+          sessionId,
+          playerId,
+          civilizationId,
+          'unit',
+          newPlayerPosition.position,
+          {
+            unitType: 'settler',
+            mp: 2,
+            maxMp: 2,
+            health: 100,
+            maxHealth: 100,
+            sight: 2,
+          },
+        );
+      }
+    }
+    
     await this.repository.update(game);
 
     return { playerId, game };
@@ -107,6 +181,9 @@ export class GameSessionService {
       }
     }
 
+    // Apply action to authoritative game state
+    gameStateService.applyAction(sessionId, playerId, intent);
+
     // Record the action
     const timestamp = new Date().toISOString();
     await this.repository.recordAction(sessionId, playerId, intent, timestamp);
@@ -132,6 +209,7 @@ export class GameSessionService {
   async getStateUpdates(sessionId: string, since: string): Promise<{
     actions: Array<{ playerId: number; intent: Intent; timestamp: string }>;
     lastUpdate: string;
+    fullState?: ReturnType<typeof gameStateService.serializeGameState>;
   }> {
     const game = await this.repository.findById(sessionId);
     if (!game) {
@@ -139,9 +217,14 @@ export class GameSessionService {
     }
 
     const actions = await this.repository.getActionsSince(sessionId, since);
+    
+    // Include full state if this is the first request (no since timestamp) or if explicitly requested
+    const includeFullState = !since || actions.length === 0;
+    
     return {
       actions,
       lastUpdate: game.getLastStateUpdate(),
+      fullState: includeFullState ? gameStateService.serializeGameState(sessionId) : undefined,
     };
   }
 

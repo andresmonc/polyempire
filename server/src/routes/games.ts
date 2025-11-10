@@ -162,10 +162,10 @@ router.get('/:id/state', async (req: Request<{ id: string }, GameStateUpdate>, r
     }
 
     const sinceTimestamp = since || game.getLastStateUpdate();
-    const { actions, lastUpdate } = await gameSessionService.getStateUpdates(id, sinceTimestamp);
+    const { actions, lastUpdate, fullState } = await gameSessionService.getStateUpdates(id, sinceTimestamp);
 
     // If no updates, return 304 Not Modified
-    if (actions.length === 0 && since) {
+    if (actions.length === 0 && since && !fullState) {
       return res.status(304).send();
     }
 
@@ -177,6 +177,7 @@ router.get('/:id/state', async (req: Request<{ id: string }, GameStateUpdate>, r
       turn: game.currentTurn,
       currentPlayerId: game.currentPlayerId,
       actions: intentActions,
+      fullState,
       timestamp: lastUpdate,
     });
   } catch (error) {
