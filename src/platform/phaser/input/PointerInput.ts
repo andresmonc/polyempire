@@ -112,7 +112,12 @@ export class PointerInput {
     if (clickedEntity !== null) {
       // Check if the clicked entity is owned by the current active player
       const owner = this.world.getComponent(clickedEntity, Components.Owner);
-      if (owner && this.gameState.isCurrentPlayer(owner.playerId)) {
+      // In multiplayer, check if this unit belongs to the local player
+      // In single-player, check if it belongs to the current player
+      const canControl = this.gameState.isMultiplayer
+        ? owner.playerId === this.gameState.localPlayerId
+        : this.gameState.isCurrentPlayer(owner.playerId);
+      if (owner && canControl) {
         // A unit or city was clicked and it's owned by the current player, so select it (this will exit move mode)
         this.intents.push({
           type: 'SelectEntity',
