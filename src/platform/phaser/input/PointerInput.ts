@@ -122,8 +122,6 @@ export class PointerInput {
         ? owner.playerId === this.gameState.localPlayerId
         : this.gameState.isCurrentPlayer(owner.playerId);
       
-      console.log(`[PointerInput] Clicked entity owner: ${owner.playerId}, localPlayerId: ${this.gameState.localPlayerId}, isMultiplayer: ${this.gameState.isMultiplayer}, canControl: ${canControl}`);
-      
       if (canControl) {
         // A unit or city was clicked and it's owned by the current player, so select it (this will exit move mode)
         this.intents.push({
@@ -182,7 +180,7 @@ export class PointerInput {
    * Finds an entity by checking if the world point is within any sprite's bounds.
    * This is a fallback for when tile-based detection fails due to coordinate issues.
    */
-  private findEntityBySpriteBounds<T extends Components.TransformTile>(
+  private findEntityBySpriteBounds(
     worldX: number,
     worldY: number,
     entities: Entity[],
@@ -193,12 +191,15 @@ export class PointerInput {
       const sprite = spriteMap.get(entity);
       if (!sprite) continue;
 
-      const dx = sprite.x - worldX;
-      const dy = sprite.y - worldY;
-      const distance = Math.sqrt(dx * dx + dy * dy);
+      // Type guard for sprites with x/y properties
+      if ('x' in sprite && 'y' in sprite && typeof sprite.x === 'number' && typeof sprite.y === 'number') {
+        const dx = sprite.x - worldX;
+        const dy = sprite.y - worldY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
 
-      if (distance < clickRadius) {
-        return entity;
+        if (distance < clickRadius) {
+          return entity;
+        }
       }
     }
 

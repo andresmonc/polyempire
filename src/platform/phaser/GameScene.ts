@@ -90,13 +90,11 @@ export class GameScene extends Phaser.Scene {
     
     // Request initial state after map is initialized (for multiplayer)
     if (data?.multiplayer && this.gameClient) {
-      console.log('Requesting initial state from server (after map init)...');
       const initialUpdate = await (this.gameClient as any).getStateUpdate(true);
       if (initialUpdate) {
-        console.log('Received initial state update');
         this.handleStateUpdate(initialUpdate);
       } else {
-        console.warn('No initial state update received from server');
+        console.warn('[GameScene] No initial state update received from server');
       }
     }
 
@@ -211,18 +209,16 @@ export class GameScene extends Phaser.Scene {
             
             // If player count increased, force a full state refresh to see new player's units
             if (currentPlayerCount > lastPlayerCount) {
-              console.log(`[GameScene] Player count changed from ${lastPlayerCount} to ${currentPlayerCount}, requesting full state refresh`);
               lastPlayerCount = currentPlayerCount;
               
               // Request full state update to get new player's units
               try {
                 const fullStateUpdate = await (this.gameClient as any).getStateUpdate(true);
                 if (fullStateUpdate) {
-                  console.log(`[GameScene] Received full state update after player join with ${fullStateUpdate.fullState?.entities?.length || 0} entities`);
                   this.handleStateUpdate(fullStateUpdate);
                 }
               } catch (error) {
-                console.error('Failed to refresh state after player join:', error);
+                console.error('[GameScene] Failed to refresh state after player join:', error);
               }
             } else if (currentPlayerCount !== lastPlayerCount) {
               // Player count decreased (player left)
@@ -257,13 +253,8 @@ export class GameScene extends Phaser.Scene {
    */
   private handleStateUpdate(update: GameStateUpdate): void {
     // If we have full state, sync entities first (this happens on initial load)
-    console.log('handleStateUpdate - fullState:', !!update.fullState, 'entities:', update.fullState?.entities?.length || 0);
     if (update.fullState) {
-      console.log('Received full state update with', update.fullState.entities.length, 'entities');
       this.syncEntitiesFromServer(update.fullState);
-    } else {
-      console.log('Received state update without full state,', update.actions.length, 'actions');
-      console.log('Update object:', JSON.stringify(update, null, 2));
     }
 
     // Apply the state update using the game client
@@ -297,11 +288,9 @@ export class GameScene extends Phaser.Scene {
     // Only sync in multiplayer mode
     if (!this.gameState.isMultiplayer) return;
 
-    console.log('Syncing entities from server:', fullState.entities.length, 'entities');
-
     // Ensure civilization registry is initialized (it should be from initializeMap)
     if (!this.civilizationRegistry) {
-      console.error('civilizationRegistry not initialized yet!');
+      console.error('[GameScene] civilizationRegistry not initialized yet!');
       return;
     }
 
@@ -331,13 +320,10 @@ export class GameScene extends Phaser.Scene {
 
         // First, try to find existing entity by server entity ID mapping (most reliable)
         let existingEntity = this.serverEntityIdMap.get(serverEntity.id);
-        console.log(`[syncEntitiesFromServer] Server entity ${serverEntity.id} (player ${serverEntity.ownerId}) - found by mapping: ${existingEntity !== undefined}`);
         
         // If not found by ID mapping, try to find by owner and position
         if (!existingEntity) {
-          const allLocalUnits = Array.from(this.ecsWorld.view(Components.Unit, Components.Owner));
-          console.log(`[syncEntitiesFromServer] Checking ${allLocalUnits.length} local units for match...`);
-          existingEntity = allLocalUnits.find(
+          existingEntity = Array.from(this.ecsWorld.view(Components.Unit, Components.Owner)).find(
             (e) => {
               const owner = this.ecsWorld.getComponent(e, Components.Owner);
               const transform = this.ecsWorld.getComponent(e, Components.TransformTile);
@@ -345,11 +331,7 @@ export class GameScene extends Phaser.Scene {
               if (owner?.playerId === serverEntity.ownerId && transform) {
                 const dx = Math.abs(transform.tx - serverEntity.position.tx);
                 const dy = Math.abs(transform.ty - serverEntity.position.ty);
-                const matches = dx <= 1 && dy <= 1;
-                if (matches) {
-                  console.log(`[syncEntitiesFromServer] Found match by position: local entity ${e} at (${transform.tx}, ${transform.ty}) matches server entity ${serverEntity.id} at (${serverEntity.position.tx}, ${serverEntity.position.ty})`);
-                }
-                return matches;
+                return dx <= 1 && dy <= 1;
               }
               return false;
             }
@@ -357,22 +339,17 @@ export class GameScene extends Phaser.Scene {
         }
 
         if (!existingEntity) {
-          console.log(`[syncEntitiesFromServer] No existing entity found for server entity ${serverEntity.id}, creating new one`);
           // Create new entity from server state
           const unitType = (serverEntity.data.unitType as string) || 'settler';
-          console.log(`Creating unit ${unitType} for player ${serverEntity.ownerId} (local player: ${this.gameState.localPlayerId}) at (${serverEntity.position.tx}, ${serverEntity.position.ty})`);
-          console.log(`[syncEntitiesFromServer] Before createUnit call`);
           const entity = unitFactory.createUnit(
             unitType,
             serverEntity.position,
             serverEntity.ownerId,
             serverEntity.civId,
           );
-          console.log(`[syncEntitiesFromServer] After createUnit call, entity:`, entity, `type: ${typeof entity}, truthy: ${!!entity}`);
           
           // Entity is a number, so we need to check for null/undefined, not truthiness (entity 0 is valid!)
           if (entity !== null && entity !== undefined && typeof entity === 'number') {
-            console.log(`Successfully created entity ${entity} from server state`);
             // Update entity data from server
             const unit = this.ecsWorld.getComponent(entity, Components.Unit);
             if (unit) {
@@ -382,28 +359,20 @@ export class GameScene extends Phaser.Scene {
               unit.maxHealth = (serverEntity.data.maxHealth as number) ?? unit.maxHealth;
             }
             
-            // Verify sprite was created
-            const sprite = this.unitSprites.get(entity);
-            const transform = this.ecsWorld.getComponent(entity, Components.TransformTile);
-            const screenPos = this.ecsWorld.getComponent(entity, Components.ScreenPos);
-            console.log(`Entity ${entity} sprite created:`, !!sprite, sprite ? `at (${sprite.x}, ${sprite.y}), visible: ${sprite.visible}, active: ${sprite.active}` : 'missing');
-            console.log(`Entity ${entity} transform: (${transform?.tx}, ${transform?.ty}), screenPos: (${screenPos?.x}, ${screenPos?.y})`);
-            
             // If this is the local player's unit, center camera on it
+            const transform = this.ecsWorld.getComponent(entity, Components.TransformTile);
             if (serverEntity.ownerId === this.gameState.localPlayerId && transform) {
               const worldPos = tileToWorld(transform);
               this.cameras.main.centerOn(worldPos.x, worldPos.y);
-              console.log(`Centered camera on local player's unit at (${worldPos.x}, ${worldPos.y})`);
             }
             
             // Store server entity ID mapping for this local entity
             this.entityIdMap.set(entity, serverEntity.id);
             this.serverEntityIdMap.set(serverEntity.id, entity);
           } else {
-            console.error(`Failed to create entity for player ${serverEntity.ownerId}`);
+            console.error(`[GameScene] Failed to create entity for player ${serverEntity.ownerId}`);
           }
         } else {
-          console.log(`[syncEntitiesFromServer] Updating existing entity ${existingEntity} for server entity ${serverEntity.id}`);
           // Update existing entity position and data from server
           const transform = this.ecsWorld.getComponent(existingEntity, Components.TransformTile);
           const unit = this.ecsWorld.getComponent(existingEntity, Components.Unit);
@@ -411,7 +380,6 @@ export class GameScene extends Phaser.Scene {
           
           // Update entity ID mapping (in case it wasn't set before)
           if (!this.entityIdMap.has(existingEntity) || this.entityIdMap.get(existingEntity) !== serverEntity.id) {
-            console.log(`[syncEntitiesFromServer] Updating entity ID mapping: local ${existingEntity} -> server ${serverEntity.id}`);
             this.entityIdMap.set(existingEntity, serverEntity.id);
             this.serverEntityIdMap.set(serverEntity.id, existingEntity);
           }
@@ -448,10 +416,6 @@ export class GameScene extends Phaser.Scene {
 
     // Remove entities that don't exist on server (for all players, to prevent duplicates)
     const localUnits = Array.from(this.ecsWorld.view(Components.Unit, Components.Owner));
-    console.log(`[syncEntitiesFromServer] Checking ${localUnits.length} local units for cleanup...`);
-    
-    // Track which server entities we've matched to local entities
-    const matchedServerIds = new Set<number>();
     
     for (const entity of localUnits) {
       const owner = this.ecsWorld.getComponent(entity, Components.Owner);
@@ -461,10 +425,6 @@ export class GameScene extends Phaser.Scene {
       // First check by server entity ID mapping (most reliable)
       const serverEntityId = this.entityIdMap.get(entity);
       const existsByMapping = serverEntityId !== undefined && syncedEntityIds.has(serverEntityId);
-      
-      if (existsByMapping) {
-        matchedServerIds.add(serverEntityId!);
-      }
       
       // Also check by position and owner (fallback)
       const transform = this.ecsWorld.getComponent(entity, Components.TransformTile);
@@ -478,10 +438,8 @@ export class GameScene extends Phaser.Scene {
         );
         if (matchingServerEntity) {
           existsByPosition = true;
-          matchedServerIds.add(matchingServerEntity.id);
           // Update mapping if it wasn't set
           if (!serverEntityId) {
-            console.log(`[syncEntitiesFromServer] Setting entity ID mapping: local ${entity} -> server ${matchingServerEntity.id}`);
             this.entityIdMap.set(entity, matchingServerEntity.id);
             this.serverEntityIdMap.set(matchingServerEntity.id, entity);
           }
@@ -491,7 +449,6 @@ export class GameScene extends Phaser.Scene {
       // If entity doesn't exist on server (by either method), remove it
       // This prevents duplicates, especially for the local player
       if (!existsByMapping && !existsByPosition) {
-        console.log(`[syncEntitiesFromServer] Removing duplicate entity ${entity} for player ${owner.playerId} - not found on server`);
         // Remove entity and sprite
         const sprite = this.unitSprites.get(entity);
         if (sprite) {
@@ -517,7 +474,6 @@ export class GameScene extends Phaser.Scene {
         });
         
         if (duplicates.length > 0) {
-          console.log(`[syncEntitiesFromServer] Found ${duplicates.length} duplicate local entities for server entity ${serverId}, removing duplicates`);
           for (const duplicate of duplicates) {
             const sprite = this.unitSprites.get(duplicate);
             if (sprite) {
@@ -530,8 +486,6 @@ export class GameScene extends Phaser.Scene {
         }
       }
     }
-    
-    console.log(`[syncEntitiesFromServer] Cleanup complete. Local units: ${Array.from(this.ecsWorld.view(Components.Unit, Components.Owner)).length}, Server entities: ${fullState.entities.length}`);
   }
 
   private initializeMap() {

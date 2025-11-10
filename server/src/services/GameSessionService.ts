@@ -48,12 +48,10 @@ export class GameSessionService {
       game.mapWidth || mapWidth,
       game.mapHeight || mapHeight,
     );
-    console.log(`[GameSessionService.createGame] Initializing game state with ${startingPositions.length} starting positions`);
     gameStateService.initializeGameState(game, startingPositions);
     
     // Verify entities were created and update entity count
     const entities = gameStateService.getEntities(sessionId);
-    console.log(`[GameSessionService.createGame] Created ${entities.length} entities for session ${sessionId}`);
     game.setLastEntityCount(entities.length);
 
     return { sessionId, playerId, game };
@@ -255,10 +253,8 @@ export class GameSessionService {
     game.setLastEntityCount(currentEntityCount);
     
     const includeFullState = !since || since === '' || entitiesChanged;
-    console.log(`[GameSessionService.getStateUpdates] sessionId: ${sessionId}, since: ${since}, includeFullState: ${includeFullState}, entitiesChanged: ${entitiesChanged} (${lastEntityCount} -> ${currentEntityCount})`);
     
     const fullState = includeFullState ? gameStateService.serializeGameState(sessionId) : undefined;
-    console.log(`[GameSessionService.getStateUpdates] Returning fullState with ${fullState?.entities?.length || 0} entities`);
     
     return {
       actions,

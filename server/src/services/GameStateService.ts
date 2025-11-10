@@ -26,7 +26,6 @@ export class GameStateService {
    */
   initializeGameState(session: GameSessionModel, startingPositions: Array<{ playerId: number; position: { tx: number; ty: number } }>): void {
     const sessionId = session.id;
-    console.log(`[GameStateService.initializeGameState] Initializing for session ${sessionId} with ${startingPositions.length} positions`);
     this.entities.set(sessionId, new Map());
     this.nextEntityId.set(sessionId, 1);
 
@@ -34,7 +33,7 @@ export class GameStateService {
     startingPositions.forEach(({ playerId, position }) => {
       const player = session.players.find(p => p.id === playerId);
       if (!player) {
-        console.warn(`[GameStateService.initializeGameState] Player ${playerId} not found in session`);
+        console.warn(`[GameStateService] Player ${playerId} not found in session`);
         return;
       }
 
@@ -56,11 +55,7 @@ export class GameStateService {
       };
 
       this.entities.get(sessionId)!.set(entityId, entity);
-      console.log(`[GameStateService.initializeGameState] Created entity ${entityId} for player ${playerId} at (${position.tx}, ${position.ty})`);
     });
-    
-    const finalEntities = this.getEntities(sessionId);
-    console.log(`[GameStateService.initializeGameState] Total entities created: ${finalEntities.length}`);
   }
 
   /**
@@ -69,12 +64,9 @@ export class GameStateService {
   getEntities(sessionId: string): ServerEntity[] {
     const sessionEntities = this.entities.get(sessionId);
     if (!sessionEntities) {
-      console.log(`[GameStateService.getEntities] No entities found for session ${sessionId}`);
       return [];
     }
-    const entities = Array.from(sessionEntities.values());
-    console.log(`[GameStateService.getEntities] Found ${entities.length} entities for session ${sessionId}`);
-    return entities;
+    return Array.from(sessionEntities.values());
   }
 
   /**
@@ -174,9 +166,6 @@ export class GameStateService {
       this.entities.set(sessionId, new Map());
     }
     this.entities.get(sessionId)!.set(entityId, entity);
-    
-    console.log(`[GameStateService.createEntity] Created entity ${entityId} for player ${ownerId} in session ${sessionId}`);
-
     return entityId;
   }
   

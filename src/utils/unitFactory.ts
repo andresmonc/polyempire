@@ -113,7 +113,6 @@ export class UnitFactory {
       this.gameScene.add.existing(unitSprite);
       this.unitSprites.set(unit, unitSprite);
       logger.debug(`Unit ${unitType} created at (${position.tx}, ${position.ty})`);
-      console.log(`[UnitFactory.createUnit] Successfully created unit, returning entity ${unit} (type: ${typeof unit}) for player ${ownerId}`);
       return unit;
     } catch (error) {
       console.error(`[UnitFactory.createUnit] Error creating sprite:`, error);
