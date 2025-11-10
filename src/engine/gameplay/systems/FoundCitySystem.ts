@@ -48,8 +48,13 @@ export class FoundCitySystem extends System {
       return;
     }
 
-    // Only allow current active player to found cities
-    if (!this.gameState.isCurrentPlayer(owner.playerId)) {
+    // In multiplayer, check if this unit belongs to the local player
+    // In single-player, check if it belongs to the current player
+    const canFoundCity = this.gameState.isMultiplayer
+      ? owner.playerId === this.gameState.localPlayerId
+      : this.gameState.isCurrentPlayer(owner.playerId);
+    
+    if (!canFoundCity) {
       logger.warn('FoundCity intent received for unit not owned by current player');
       return;
     }

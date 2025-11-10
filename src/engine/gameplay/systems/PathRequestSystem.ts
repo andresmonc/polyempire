@@ -43,8 +43,13 @@ export class PathRequestSystem extends System {
       return;
     }
 
-    // Only allow movement for units owned by the current active player
-    if (!this.gameState.isCurrentPlayer(owner.playerId)) {
+    // In multiplayer, check if this unit belongs to the local player
+    // In single-player, check if it belongs to the current player
+    const canMove = this.gameState.isMultiplayer
+      ? owner.playerId === this.gameState.localPlayerId
+      : this.gameState.isCurrentPlayer(owner.playerId);
+    
+    if (!canMove) {
       return;
     }
 

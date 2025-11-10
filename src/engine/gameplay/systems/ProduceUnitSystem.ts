@@ -54,7 +54,18 @@ export class ProduceUnitSystem extends System {
       logger.warn('ProduceUnit intent received for non-city entity');
       return;
     }
-    if (!owner || !this.gameState.isCurrentPlayer(owner.playerId)) {
+    if (!owner) {
+      logger.warn('ProduceUnit intent received for city without Owner');
+      return;
+    }
+    
+    // In multiplayer, check if this city belongs to the local player
+    // In single-player, check if it belongs to the current player
+    const canProduce = this.gameState.isMultiplayer
+      ? owner.playerId === this.gameState.localPlayerId
+      : this.gameState.isCurrentPlayer(owner.playerId);
+    
+    if (!canProduce) {
       logger.warn('ProduceUnit intent received for city not owned by current player');
       return;
     }
