@@ -303,6 +303,10 @@ export class JoinGameScene extends Phaser.Scene {
   }
 
   private async joinGame() {
+    // Get map dimensions from cache (same map file used by GameScene)
+    const mapJson = this.cache.json.get('map');
+    const mapWidth = mapJson?.width || 20;
+    const mapHeight = mapJson?.height || 12;
     if (!this.selectedCivId || !this.sessionId) return;
 
     const joinButton = this.children.getByName('join-button') as
@@ -326,6 +330,8 @@ export class JoinGameScene extends Phaser.Scene {
         body: JSON.stringify({
           playerName: 'Player',
           civilizationId: this.selectedCivId,
+          mapWidth,
+          mapHeight,
         }),
       });
 

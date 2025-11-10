@@ -29,6 +29,8 @@ router.post('/', async (req: Request<{}, CreateGameResponse, CreateGameRequest>,
       name,
       playerName,
       civilizationId,
+      req.body.mapWidth || 20, // Default to 20 if not provided (matches map.sample.json)
+      req.body.mapHeight || 12, // Default to 12 if not provided
     );
 
     res.json({
@@ -76,7 +78,14 @@ router.post(
         return res.status(400).json({ error: 'Missing required fields' } as any);
       }
 
-      const { playerId, game } = await gameSessionService.joinGame(id, playerName, civilizationId);
+      // mapWidth and mapHeight are optional - server uses stored dimensions from game creation
+      const { playerId, game } = await gameSessionService.joinGame(
+        id,
+        playerName,
+        civilizationId,
+        req.body.mapWidth,
+        req.body.mapHeight,
+      );
 
       res.json({
         playerId,

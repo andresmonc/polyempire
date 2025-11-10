@@ -16,6 +16,8 @@ export class GameSessionModel implements IGameSession {
   public status: 'waiting' | 'active' | 'finished';
   public createdAt: string;
   public updatedAt: string;
+  public mapWidth?: number; // Map dimensions - set when game is created
+  public mapHeight?: number;
 
   // Server-side only fields
   private actionHistory: Array<{ playerId: number; intent: Intent; timestamp: string }> = [];
@@ -31,6 +33,8 @@ export class GameSessionModel implements IGameSession {
     creatorPlayerId: number,
     creatorName: string,
     creatorCivId: string,
+    mapWidth?: number,
+    mapHeight?: number,
   ) {
     this.id = id;
     this.name = name;
@@ -48,6 +52,8 @@ export class GameSessionModel implements IGameSession {
     this.status = 'waiting';
     this.createdAt = new Date().toISOString();
     this.updatedAt = new Date().toISOString();
+    this.mapWidth = mapWidth;
+    this.mapHeight = mapHeight;
   }
 
   /**

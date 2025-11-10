@@ -218,6 +218,10 @@ export class CreateGameScene extends Phaser.Scene {
   private updateCreateButton: () => void = () => {};
 
   private async createGame() {
+    // Get map dimensions from cache (same map file used by GameScene)
+    const mapJson = this.cache.json.get('map');
+    const mapWidth = mapJson?.width || 20;
+    const mapHeight = mapJson?.height || 12;
     if (!this.selectedCivId || !this.gameName.trim()) return;
 
     if (this.statusText) {
@@ -236,6 +240,8 @@ export class CreateGameScene extends Phaser.Scene {
           name: this.gameName,
           playerName: 'Player',
           civilizationId: this.selectedCivId,
+          mapWidth,
+          mapHeight,
         }),
       });
 

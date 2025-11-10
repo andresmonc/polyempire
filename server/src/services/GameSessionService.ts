@@ -38,12 +38,16 @@ export class GameSessionService {
     const sessionId = uuidv4();
     const playerId = this.nextPlayerId++;
 
-    const game = new GameSessionModel(sessionId, name, playerId, playerName, civilizationId);
+    // Store map dimensions in the game session
+    const game = new GameSessionModel(sessionId, name, playerId, playerName, civilizationId, mapWidth, mapHeight);
     await this.repository.create(game);
 
-    // Initialize game state with starting positions
-    // For now, use a simple approach - in production, you'd load actual map data
-    const startingPositions = this.generateStartingPositionsForSession(game, mapWidth, mapHeight);
+    // Initialize game state with starting positions using the stored map dimensions
+    const startingPositions = this.generateStartingPositionsForSession(
+      game,
+      game.mapWidth || mapWidth,
+      game.mapHeight || mapHeight,
+    );
     console.log(`[GameSessionService.createGame] Initializing game state with ${startingPositions.length} starting positions`);
     gameStateService.initializeGameState(game, startingPositions);
     
@@ -96,13 +100,14 @@ export class GameSessionService {
 
   /**
    * Join an existing game
+   * Note: mapWidth and mapHeight are ignored - we use the dimensions stored when the game was created
    */
   async joinGame(
     sessionId: string,
     playerName: string,
     civilizationId: string,
-    mapWidth: number = 50,
-    mapHeight: number = 50,
+    mapWidth?: number, // Ignored - use stored dimensions from game
+    mapHeight?: number, // Ignored - use stored dimensions from game
   ): Promise<{ playerId: number; game: GameSessionModel }> {
     const game = await this.repository.findById(sessionId);
     if (!game) {
@@ -113,6 +118,17 @@ export class GameSessionService {
       throw new Error('Game has finished');
     }
 
+    // Use the map dimensions stored in the game session (set when game was created)
+    const gameMapWidth = game.mapWidth || 20;
+    const gameMapHeight = game.mapHeight || 12;
+
+    // Validate that client's map dimensions match (optional check - could throw error if mismatch)
+    if (mapWidth && mapHeight && (mapWidth !== gameMapWidth || mapHeight !== gameMapHeight)) {
+      console.warn(
+        `[GameSessionService.joinGame] Map dimension mismatch! Client: ${mapWidth}x${mapHeight}, Game: ${gameMapWidth}x${gameMapHeight}. Using game dimensions.`,
+      );
+    }
+
     const playerId = this.nextPlayerId++;
     game.addPlayer(playerId, playerName, civilizationId);
     
@@ -120,11 +136,11 @@ export class GameSessionService {
     const existingEntities = gameStateService.getEntities(sessionId);
     if (existingEntities.length === 0) {
       // Generate starting positions for all players including the new one
-      const startingPositions = this.generateStartingPositionsForSession(game, mapWidth, mapHeight);
+      const startingPositions = this.generateStartingPositionsForSession(game, gameMapWidth, gameMapHeight);
       gameStateService.initializeGameState(game, startingPositions);
     } else {
-      // Add starting unit for the new player
-      const startingPositions = this.generateStartingPositionsForSession(game, mapWidth, mapHeight);
+      // Add starting unit for the new player using the game's stored map dimensions
+      const startingPositions = this.generateStartingPositionsForSession(game, gameMapWidth, gameMapHeight);
       const newPlayerPosition = startingPositions.find(p => p.playerId === playerId);
       if (newPlayerPosition) {
         gameStateService.createEntity(

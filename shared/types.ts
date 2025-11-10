@@ -93,6 +93,8 @@ export interface GameSession {
   status: 'waiting' | 'active' | 'finished';
   createdAt: string;
   updatedAt: string;
+  mapWidth?: number; // Map dimensions stored when game is created
+  mapHeight?: number;
   // Extended info (optional, for detailed turn status)
   playersEndedTurn?: number[]; // Players who have ended their turn this round
   allPlayersEnded?: boolean; // Whether all players have ended their turn
@@ -186,6 +188,8 @@ export interface CreateGameRequest {
   name: string;
   playerName: string;
   civilizationId: string;
+  mapWidth?: number;
+  mapHeight?: number;
 }
 
 /**
