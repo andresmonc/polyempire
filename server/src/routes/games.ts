@@ -54,7 +54,8 @@ router.get('/:id', async (req: Request<{ id: string }>, res: Response) => {
       return res.status(404).json({ error: 'Game not found' } as any);
     }
 
-    res.json(game.toJSON());
+    // Return extended info with turn status
+    res.json(game.getExtendedInfo());
   } catch (error) {
     res.status(500).json({ error: (error as Error).message } as any);
   }

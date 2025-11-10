@@ -50,7 +50,11 @@ export class RestGameClient implements IGameClient {
       if (this.connection.token) {
         this.httpClient.setDefaultHeader('Authorization', `Bearer ${this.connection.token}`);
       }
-      this.session = await this.httpClient.get<GameSession>(`/games/${this.connection.sessionId}`);
+      const sessionData = await this.httpClient.get<GameSession>(`/games/${this.connection.sessionId}`);
+      this.session = sessionData;
+      
+      // Update last update timestamp when we get session info
+      this.lastUpdateTimestamp = sessionData.updatedAt;
     } catch (error) {
       console.error('Failed to fetch session:', error);
       throw error;
@@ -129,7 +133,11 @@ export class RestGameClient implements IGameClient {
 
   isMyTurn(): boolean {
     if (!this.connection || !this.session) return false;
-    return this.session.currentPlayerId === this.connection.playerId;
+    // In simultaneous turns, all players can act unless they've ended their turn
+    if (this.session.playersEndedTurn && this.session.playersEndedTurn.includes(this.connection.playerId)) {
+      return false; // Player has already ended their turn
+    }
+    return true; // In simultaneous turns, all players can act
   }
 
   startPolling(callback: (update: GameStateUpdate) => void): void {
@@ -138,9 +146,18 @@ export class RestGameClient implements IGameClient {
     this.stopPolling(); // Clear any existing polling
 
     this.pollingInterval = window.setInterval(async () => {
+      // Poll for state updates
       const update = await this.getStateUpdate();
       if (update) {
         callback(update);
+      }
+      
+      // Also periodically refresh session info to get turn status
+      try {
+        await this.fetchSession();
+      } catch (error) {
+        // Silently fail - session fetch errors are not critical
+        console.warn('Failed to refresh session info:', error);
       }
     }, this.config.pollInterval);
   }

@@ -131,6 +131,7 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [ecsWorld, setEcsWorld] = useState<World | null>(null);
   const [_, setTick] = useState(0); // Used to force re-renders
+  const [sessionInfo, setSessionInfo] = useState<{ playersEndedTurn?: number[]; allPlayersEnded?: boolean } | null>(null);
 
   // --- Selected Entity State ---
   const [selectedUnit, setSelectedUnit] = useState<Components.Unit | null>(null);
@@ -162,10 +163,15 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
     game.events.on('game-ready', handleGameReady);
     // Listen for an event from Phaser to trigger re-renders
     game.events.on('ui-update', forceUpdate);
+    // Listen for session updates
+    game.events.on('session-update', (data: { playersEndedTurn?: number[]; allPlayersEnded?: boolean }) => {
+      setSessionInfo(data);
+    });
 
     return () => {
       game.events.off('game-ready', handleGameReady);
       game.events.off('ui-update', forceUpdate);
+      game.events.off('session-update', () => {});
     };
   }, [game]);
 
@@ -398,10 +404,31 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
             >
               {gameState.sessionId}
             </div>
+            {sessionInfo && (
+              <div style={{ marginTop: '10px', fontSize: '12px' }}>
+                {sessionInfo.allPlayersEnded ? (
+                  <div style={{ color: '#4ade80' }}>All players ready - Turn advancing...</div>
+                ) : sessionInfo.playersEndedTurn && sessionInfo.playersEndedTurn.includes(gameState.localPlayerId) ? (
+                  <div style={{ color: '#fbbf24' }}>Waiting for other players...</div>
+                ) : (
+                  <div style={{ color: '#60a5fa' }}>Your turn - Take your actions</div>
+                )}
+              </div>
+            )}
           </div>
         )}
-        <button style={buttonStyle} onClick={handleEndTurn}>
-          End Turn
+        <button 
+          style={{
+            ...buttonStyle,
+            opacity: (gameState.isMultiplayer && sessionInfo?.playersEndedTurn?.includes(gameState.localPlayerId)) ? 0.5 : 1,
+            cursor: (gameState.isMultiplayer && sessionInfo?.playersEndedTurn?.includes(gameState.localPlayerId)) ? 'not-allowed' : 'pointer'
+          }}
+          onClick={handleEndTurn}
+          disabled={gameState.isMultiplayer && sessionInfo?.playersEndedTurn?.includes(gameState.localPlayerId) === true}
+        >
+          {gameState.isMultiplayer && sessionInfo?.playersEndedTurn?.includes(gameState.localPlayerId) 
+            ? 'Turn Ended' 
+            : 'End Turn'}
         </button>
 
         {selectedUnit && (

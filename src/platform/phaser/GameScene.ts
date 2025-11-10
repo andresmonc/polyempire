@@ -162,6 +162,17 @@ export class GameScene extends Phaser.Scene {
         this.gameClient.startPolling((update) => {
           this.handleStateUpdate(update);
         });
+        
+        // Also poll for session info updates (turn status)
+        setInterval(() => {
+          const session = this.gameClient.getSession();
+          if (session && this.gameState.isMultiplayer) {
+            this.game.events.emit('session-update', {
+              playersEndedTurn: session.playersEndedTurn,
+              allPlayersEnded: session.allPlayersEnded,
+            });
+          }
+        }, 2000); // Poll every 2 seconds
       }
     } else {
       this.gameClient = createGameClient('local');

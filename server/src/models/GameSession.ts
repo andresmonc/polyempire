@@ -20,6 +20,8 @@ export class GameSessionModel implements IGameSession {
   // Server-side only fields
   private actionHistory: Array<{ playerId: number; intent: Intent; timestamp: string }> = [];
   private lastStateUpdate: string = new Date().toISOString();
+  // Track which players have ended their turn this round
+  private playersEndedTurn = new Set<number>();
 
   constructor(
     id: string,
@@ -97,15 +99,56 @@ export class GameSessionModel implements IGameSession {
   }
 
   /**
-   * Advance to next turn
+   * Mark a player as having ended their turn
+   * Returns true if all players have ended their turn (ready to advance)
    */
-  nextTurn(): void {
-    this.currentTurn++;
-    // Simple round-robin turn order
-    const playerIds = this.players.map(p => p.id).sort();
-    const currentIndex = playerIds.indexOf(this.currentPlayerId);
-    this.currentPlayerId = playerIds[(currentIndex + 1) % playerIds.length];
+  playerEndTurn(playerId: number): boolean {
+    // Validate player exists
+    if (!this.players.some(p => p.id === playerId)) {
+      throw new Error('Player not in game');
+    }
+
+    this.playersEndedTurn.add(playerId);
     this.updatedAt = new Date().toISOString();
+
+    // Check if all active players have ended their turn
+    const activePlayers = this.players.filter(p => p.isConnected).map(p => p.id);
+    const allEnded = activePlayers.every(id => this.playersEndedTurn.has(id));
+
+    if (allEnded) {
+      // Advance to next turn
+      this.advanceTurn();
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Advance to the next turn (called when all players have ended their turn)
+   */
+  private advanceTurn(): void {
+    this.currentTurn++;
+    // Clear ended turn tracking for new turn
+    this.playersEndedTurn.clear();
+    // In simultaneous turns, all players can act, so we don't change currentPlayerId
+    // (or you could use it to track turn order if needed)
+    this.updatedAt = new Date().toISOString();
+    this.lastStateUpdate = new Date().toISOString();
+  }
+
+  /**
+   * Check if a player has ended their turn this round
+   */
+  hasPlayerEndedTurn(playerId: number): boolean {
+    return this.playersEndedTurn.has(playerId);
+  }
+
+  /**
+   * Get list of players who have ended their turn
+   */
+  getPlayersEndedTurn(): number[] {
+    return Array.from(this.playersEndedTurn);
   }
 
   /**
@@ -128,6 +171,17 @@ export class GameSessionModel implements IGameSession {
       status: this.status,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
+    };
+  }
+
+  /**
+   * Get extended game info including turn status
+   */
+  getExtendedInfo() {
+    return {
+      ...this.toJSON(),
+      playersEndedTurn: this.getPlayersEndedTurn(),
+      allPlayersEnded: this.players.filter(p => p.isConnected).every(p => this.playersEndedTurn.has(p.id)),
     };
   }
 }

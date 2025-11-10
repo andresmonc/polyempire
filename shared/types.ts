@@ -89,10 +89,13 @@ export interface GameSession {
   name: string;
   players: PlayerInfo[];
   currentTurn: number;
-  currentPlayerId: number;
+  currentPlayerId: number; // In simultaneous turns, this may represent the "active" player or be unused
   status: 'waiting' | 'active' | 'finished';
   createdAt: string;
   updatedAt: string;
+  // Extended info (optional, for detailed turn status)
+  playersEndedTurn?: number[]; // Players who have ended their turn this round
+  allPlayersEnded?: boolean; // Whether all players have ended their turn
 }
 
 /**

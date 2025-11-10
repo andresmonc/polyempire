@@ -81,14 +81,21 @@ export class GameSessionService {
       throw new Error('Game not found');
     }
 
-    // Validate it's the player's turn
-    if (game.currentPlayerId !== playerId) {
-      throw new Error('Not your turn');
-    }
-
     // Validate player exists
     if (!game.players.some(p => p.id === playerId)) {
       throw new Error('Player not in game');
+    }
+
+    // For EndTurn, check if player already ended their turn
+    if (intent.type === 'EndTurn') {
+      if (game.hasPlayerEndedTurn(playerId)) {
+        throw new Error('You have already ended your turn this round');
+      }
+    } else {
+      // For other actions, check if player has already ended their turn
+      if (game.hasPlayerEndedTurn(playerId)) {
+        throw new Error('Cannot perform actions after ending your turn');
+      }
     }
 
     // Record the action
@@ -97,9 +104,13 @@ export class GameSessionService {
     // Also update in-memory model for quick access
     game.recordAction(playerId, intent);
 
-    // Handle turn advancement
+    // Handle turn advancement for EndTurn
     if (intent.type === 'EndTurn') {
-      game.nextTurn();
+      const turnAdvanced = game.playerEndTurn(playerId);
+      if (turnAdvanced) {
+        // All players have ended their turn - turn has advanced
+        // The turn advancement is handled in playerEndTurn
+      }
     }
 
     // Update game state
