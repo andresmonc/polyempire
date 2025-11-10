@@ -51,9 +51,10 @@ export class GameSessionService {
     console.log(`[GameSessionService.createGame] Initializing game state with ${startingPositions.length} starting positions`);
     gameStateService.initializeGameState(game, startingPositions);
     
-    // Verify entities were created
+    // Verify entities were created and update entity count
     const entities = gameStateService.getEntities(sessionId);
     console.log(`[GameSessionService.createGame] Created ${entities.length} entities for session ${sessionId}`);
+    game.setLastEntityCount(entities.length);
 
     return { sessionId, playerId, game };
   }
@@ -138,6 +139,9 @@ export class GameSessionService {
       // Generate starting positions for all players including the new one
       const startingPositions = this.generateStartingPositionsForSession(game, gameMapWidth, gameMapHeight);
       gameStateService.initializeGameState(game, startingPositions);
+      // Update entity count
+      const allEntities = gameStateService.getEntities(sessionId);
+      game.setLastEntityCount(allEntities.length);
     } else {
       // Add starting unit for the new player using the game's stored map dimensions
       const startingPositions = this.generateStartingPositionsForSession(game, gameMapWidth, gameMapHeight);
@@ -158,6 +162,7 @@ export class GameSessionService {
             sight: 2,
           },
         );
+        // Entity count will be updated on next getStateUpdates call, which will trigger full state sync
       }
     }
     
@@ -238,9 +243,19 @@ export class GameSessionService {
 
     const actions = await this.repository.getActionsSince(sessionId, since || '');
     
-    // Include full state if this is the first request (no since timestamp) or if explicitly requested
-    const includeFullState = !since || since === '';
-    console.log(`[GameSessionService.getStateUpdates] sessionId: ${sessionId}, since: ${since}, includeFullState: ${includeFullState}`);
+    // Include full state if:
+    // 1. This is the first request (no since timestamp)
+    // 2. Explicitly requested with fullState=true
+    // 3. Entities have changed (new entities added/removed) - detected by comparing entity count
+    const lastEntityCount = game.getLastEntityCount();
+    const currentEntityCount = gameStateService.getEntityCount(sessionId);
+    const entitiesChanged = lastEntityCount !== currentEntityCount;
+    
+    // Update the stored entity count
+    game.setLastEntityCount(currentEntityCount);
+    
+    const includeFullState = !since || since === '' || entitiesChanged;
+    console.log(`[GameSessionService.getStateUpdates] sessionId: ${sessionId}, since: ${since}, includeFullState: ${includeFullState}, entitiesChanged: ${entitiesChanged} (${lastEntityCount} -> ${currentEntityCount})`);
     
     const fullState = includeFullState ? gameStateService.serializeGameState(sessionId) : undefined;
     console.log(`[GameSessionService.getStateUpdates] Returning fullState with ${fullState?.entities?.length || 0} entities`);

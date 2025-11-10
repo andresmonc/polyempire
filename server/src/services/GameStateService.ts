@@ -149,6 +149,7 @@ export class GameStateService {
 
   /**
    * Create a new entity (e.g., when a unit is produced)
+   * Returns the entity ID and a flag indicating if this is a new entity
    */
   createEntity(
     sessionId: string,
@@ -173,8 +174,17 @@ export class GameStateService {
       this.entities.set(sessionId, new Map());
     }
     this.entities.get(sessionId)!.set(entityId, entity);
+    
+    console.log(`[GameStateService.createEntity] Created entity ${entityId} for player ${ownerId} in session ${sessionId}`);
 
     return entityId;
+  }
+  
+  /**
+   * Get the count of entities for a session (useful for detecting changes)
+   */
+  getEntityCount(sessionId: string): number {
+    return this.getEntities(sessionId).length;
   }
 
   /**

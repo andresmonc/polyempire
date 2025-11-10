@@ -22,6 +22,7 @@ export class GameSessionModel implements IGameSession {
   // Server-side only fields
   private actionHistory: Array<{ playerId: number; intent: Intent; timestamp: string }> = [];
   private lastStateUpdate: string = new Date().toISOString();
+  private lastEntityCount: number = 0; // Track entity count to detect changes
   // Track which players have ended their turn this round
   private playersEndedTurn = new Set<number>();
   // Track wars between players (for hybrid turn system)
@@ -270,6 +271,14 @@ export class GameSessionModel implements IGameSession {
    */
   getLastStateUpdate(): string {
     return this.lastStateUpdate;
+  }
+  
+  getLastEntityCount(): number {
+    return this.lastEntityCount;
+  }
+  
+  setLastEntityCount(count: number): void {
+    this.lastEntityCount = count;
   }
 
   /**
