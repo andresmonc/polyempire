@@ -350,12 +350,23 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
     <>
       {/* Top Bar - Civilization Total Yields */}
       <div style={topBarStyle}>
+        <div
+          style={{
+            ...yieldItemStyle,
+            marginRight: '20px',
+            paddingRight: '20px',
+            borderRight: '1px solid #444',
+          }}
+        >
+          <span style={yieldLabelStyle}>Player ID:</span>
+          <span style={yieldValueStyle}>{gameState.localPlayerId}</span>
+        </div>
         {gameState.isMultiplayer && gameState.sessionId && (
-          <div 
-            style={{ 
-              ...yieldItemStyle, 
-              marginRight: '20px', 
-              paddingRight: '20px', 
+          <div
+            style={{
+              ...yieldItemStyle,
+              marginRight: '20px',
+              paddingRight: '20px',
               borderRight: '1px solid #444',
               pointerEvents: 'all',
               cursor: 'pointer'
@@ -367,7 +378,7 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
             title="Click to copy session ID"
           >
             <span style={yieldLabelStyle}>Session ID:</span>
-            <span 
+            <span
               style={{ ...yieldValueStyle, fontSize: '12px', fontFamily: 'monospace' }}
             >
               {gameState.sessionId.substring(0, 8)}...
