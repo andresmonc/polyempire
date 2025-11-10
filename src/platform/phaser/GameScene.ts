@@ -87,12 +87,46 @@ export class GameScene extends Phaser.Scene {
 
     // --- World Creation ---
     this.createTileEntities();
-    this.createInitialUnits(data?.selectedCivId || DEFAULT_CIVILIZATION_ID);
     
-    // Create bot units
-    if (data?.bots && data.bots.length > 0) {
-      this.createBotUnits(data.bots);
+    // Determine all players (local player + bots + multiplayer players)
+    const allPlayers: Array<{ playerId: number; civId: string }> = [];
+    
+    if (data?.multiplayer) {
+      // In multiplayer, get players from session
+      const session = this.gameClient?.getSession();
+      if (session) {
+        session.players.forEach(player => {
+          allPlayers.push({
+            playerId: player.id,
+            civId: player.civilizationId,
+          });
+        });
+      } else {
+        // Fallback: just create for local player
+        allPlayers.push({
+          playerId: data?.playerId || 0,
+          civId: data?.selectedCivId || DEFAULT_CIVILIZATION_ID,
+        });
+      }
+    } else {
+      // Single player: local player + bots
+      allPlayers.push({
+        playerId: 0,
+        civId: data?.selectedCivId || DEFAULT_CIVILIZATION_ID,
+      });
+      
+      if (data?.bots && data.bots.length > 0) {
+        data.bots.forEach(bot => {
+          allPlayers.push({
+            playerId: bot.playerId,
+            civId: bot.civId,
+          });
+        });
+      }
     }
+    
+    // Generate starting positions for all players at once
+    await this.createUnitsForAllPlayers(allPlayers);
 
     // Initialize civilizations for initial units to ensure production starts accruing from turn 1
     const initialUnits = this.ecsWorld.view(Components.Unit, Components.Owner, Components.CivilizationComponent);
@@ -436,15 +470,14 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private createInitialUnits(selectedCivId: string = DEFAULT_CIVILIZATION_ID) {
+  /**
+   * Creates units for all players with properly spaced starting positions
+   */
+  private async createUnitsForAllPlayers(players: Array<{ playerId: number; civId: string }>) {
     this.unitsContainer = this.add.container(0, 0);
     this.pathPreview = this.add.graphics();
     this.unitsContainer.add(this.pathPreview);
 
-    const startPos = this.mapData.startPos;
-    const civId = selectedCivId;
-
-    // Use UnitFactory to create the initial settler
     const unitFactory = new UnitFactory(
       this.ecsWorld,
       this,
@@ -452,46 +485,44 @@ export class GameScene extends Phaser.Scene {
       this.unitSprites,
     );
 
-    const settler = unitFactory.createUnit('settler', { tx: startPos.tx, ty: startPos.ty }, 0, civId);
-    if (!settler) {
-      throw new Error('Failed to create initial settler unit');
-    }
-  }
+    // Generate starting positions for all players at once
+    // This ensures proper spacing between all players
+    const { generateStartingPositions } = await import('@/utils/startingPositions');
+    const startingPositions = generateStartingPositions(players.length, this.mapData, {
+      minDistance: 8, // Minimum 8 tiles apart
+      preferGoodTerrain: true,
+    });
 
-  /**
-   * Creates bot units at random valid positions on the map.
-   */
-  private createBotUnits(bots: Array<{ civId: string; playerId: number }>) {
-    const unitFactory = new UnitFactory(
-      this.ecsWorld,
-      this,
-      this.civilizationRegistry,
-      this.unitSprites,
-    );
-
-    // Get all valid spawn positions (not blocked, not water, not too close to player start)
-    const validPositions = this.getValidSpawnPositions();
-    
-    if (validPositions.length < bots.length) {
-      console.warn(`Not enough valid spawn positions for ${bots.length} bots. Only spawning ${validPositions.length} bots.`);
-    }
-
-    // Shuffle positions to randomize
-    const shuffledPositions = [...validPositions].sort(() => Math.random() - 0.5);
-
-    bots.forEach((bot, index) => {
-      if (index >= shuffledPositions.length) {
-        console.warn(`No valid spawn position for bot ${index + 1}`);
+    // Create a settler for each player at their assigned position
+    players.forEach((player, index) => {
+      if (index >= startingPositions.length) {
+        console.warn(`No starting position for player ${player.playerId}`);
         return;
       }
 
-      const spawnPos = shuffledPositions[index];
-      const settler = unitFactory.createUnit('settler', spawnPos, bot.playerId, bot.civId);
+      const startPos = startingPositions[index];
+      const settler = unitFactory.createUnit('settler', { tx: startPos.tx, ty: startPos.ty }, player.playerId, player.civId);
       
       if (!settler) {
-        console.warn(`Failed to create bot unit for ${bot.civId} at (${spawnPos.tx}, ${spawnPos.ty})`);
+        console.warn(`Failed to create initial settler unit for player ${player.playerId} at (${startPos.tx}, ${startPos.ty})`);
       }
     });
+  }
+
+  /**
+   * @deprecated Use createUnitsForAllPlayers instead
+   */
+  private createInitialUnits(selectedCivId: string = DEFAULT_CIVILIZATION_ID) {
+    this.createUnitsForAllPlayers([{ playerId: 0, civId: selectedCivId }]);
+  }
+
+  /**
+   * @deprecated Bot units are now created via createUnitsForAllPlayers
+   * This method is kept for backwards compatibility but should not be used
+   */
+  private createBotUnits(bots: Array<{ civId: string; playerId: number }>) {
+    // This is now handled in createUnitsForAllPlayers
+    console.warn('createBotUnits is deprecated. Use createUnitsForAllPlayers instead.');
   }
 
   /**
