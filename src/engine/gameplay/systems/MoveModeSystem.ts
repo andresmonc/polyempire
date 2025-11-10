@@ -28,8 +28,18 @@ export class MoveModeSystem extends System {
       // Only enter move mode if a unit is selected and owned by the current active player
       if (this.gameState.selectedEntity !== null) {
         const owner = this.world.getComponent(this.gameState.selectedEntity, Owner);
+        if (!owner) {
+          return;
+        }
+        
+        // In multiplayer, check if this unit belongs to the local player
+        // In single-player, check if it belongs to the current player
+        const canEnterMoveMode = this.gameState.isMultiplayer
+          ? owner.playerId === this.gameState.localPlayerId
+          : this.gameState.isCurrentPlayer(owner.playerId);
+        
         // Prevent newly purchased units from entering move mode
-        if (owner && this.gameState.isCurrentPlayer(owner.playerId) && !this.world.hasComponent(this.gameState.selectedEntity, NewlyPurchased)) {
+        if (canEnterMoveMode && !this.world.hasComponent(this.gameState.selectedEntity, NewlyPurchased)) {
           this.gameState.moveMode = true;
           this.events.emit('ui-update');
         }

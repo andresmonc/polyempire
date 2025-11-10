@@ -30,32 +30,30 @@ export class TurnSystem extends System {
     const endTurnIntent = this.intents.pop(isIntent('EndTurn'));
 
     if (endTurnIntent) {
-      // In multiplayer, don't increment turn locally - wait for server to tell us
-      // The server is authoritative for turn advancement
+      // In multiplayer, don't do anything locally - wait for server to tell us
+      // The server is authoritative for turn advancement and MP restoration
       if (!this.gameState.isMultiplayer) {
+        // Single-player mode: handle turn advancement locally
         this.gameState.turn++;
-      }
-      // In multiplayer, the turn will be updated from server state updates
 
-      // Restore MP for all units
-      const units = this.world.view(Unit);
-      for (const entity of units) {
-        const unit = this.world.getComponent(entity, Unit)!;
-        unit.mp = unit.maxMp;
-      }
+        // Restore MP for all units
+        const units = this.world.view(Unit);
+        for (const entity of units) {
+          const unit = this.world.getComponent(entity, Unit)!;
+          unit.mp = unit.maxMp;
+        }
 
-      // Remove NewlyPurchased component from all units so they can act next turn
-      const newlyPurchasedUnits = this.world.view(NewlyPurchased);
-      for (const entity of newlyPurchasedUnits) {
-        this.world.removeComponent(entity, NewlyPurchased);
-      }
+        // Remove NewlyPurchased component from all units so they can act next turn
+        const newlyPurchasedUnits = this.world.view(NewlyPurchased);
+        for (const entity of newlyPurchasedUnits) {
+          this.world.removeComponent(entity, NewlyPurchased);
+        }
 
-      // Signal that a new turn has begun (only if we actually advanced the turn)
-      // In multiplayer, TurnBegan will be triggered when server confirms turn advancement
-      if (!this.gameState.isMultiplayer) {
+        // Signal that a new turn has begun
         this.intents.push({ type: 'TurnBegan' });
         this.events.emit('ui-update');
       }
+      // In multiplayer, all of this is handled by RestGameClient.applyStateUpdate when turn advances
     }
   }
 }
