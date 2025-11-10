@@ -131,7 +131,11 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [ecsWorld, setEcsWorld] = useState<World | null>(null);
   const [_, setTick] = useState(0); // Used to force re-renders
-  const [sessionInfo, setSessionInfo] = useState<{ playersEndedTurn?: number[]; allPlayersEnded?: boolean } | null>(null);
+  const [sessionInfo, setSessionInfo] = useState<{ 
+    playersEndedTurn?: number[]; 
+    allPlayersEnded?: boolean;
+    isSequentialMode?: boolean;
+  } | null>(null);
 
   // --- Selected Entity State ---
   const [selectedUnit, setSelectedUnit] = useState<Components.Unit | null>(null);
@@ -164,7 +168,11 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
     // Listen for an event from Phaser to trigger re-renders
     game.events.on('ui-update', forceUpdate);
     // Listen for session updates
-    game.events.on('session-update', (data: { playersEndedTurn?: number[]; allPlayersEnded?: boolean }) => {
+    game.events.on('session-update', (data: { 
+      playersEndedTurn?: number[]; 
+      allPlayersEnded?: boolean;
+      isSequentialMode?: boolean;
+    }) => {
       setSessionInfo(data);
     });
 
@@ -290,11 +298,12 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
   }, [gameState, ecsWorld, gameState?.selectedEntity, gameState?.moveMode, _, game]); // Re-run when selection, move mode, tick, or game changes
 
   const handleEndTurn = () => {
-    // Prevent spamming EndTurn
-    if (gameState?.isMultiplayer && sessionInfo?.playersEndedTurn?.includes(gameState.localPlayerId)) {
+    // Prevent spamming EndTurn (only in simultaneous mode)
+    if (gameState?.isMultiplayer && !sessionInfo?.isSequentialMode && sessionInfo?.playersEndedTurn?.includes(gameState.localPlayerId)) {
       console.warn('Cannot end turn - already ended this round');
       return;
     }
+    // In sequential mode, isMyTurn() will handle validation
     intentQueue?.push({ type: 'EndTurn' });
   };
 
@@ -411,12 +420,22 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
             </div>
             {sessionInfo && (
               <div style={{ marginTop: '10px', fontSize: '12px' }}>
-                {sessionInfo.allPlayersEnded ? (
-                  <div style={{ color: '#4ade80' }}>All players ready - Turn advancing...</div>
-                ) : sessionInfo.playersEndedTurn && sessionInfo.playersEndedTurn.includes(gameState.localPlayerId) ? (
-                  <div style={{ color: '#fbbf24' }}>Waiting for other players...</div>
+                {sessionInfo.isSequentialMode ? (
+                  // Sequential mode (war)
+                  gameState.currentPlayerId === gameState.localPlayerId ? (
+                    <div style={{ color: '#60a5fa' }}>⚔️ Your turn (Sequential - War Mode)</div>
+                  ) : (
+                    <div style={{ color: '#fbbf24' }}>⚔️ Waiting for opponent's turn (War Mode)</div>
+                  )
                 ) : (
-                  <div style={{ color: '#60a5fa' }}>Your turn - Take your actions</div>
+                  // Simultaneous mode
+                  sessionInfo.allPlayersEnded ? (
+                    <div style={{ color: '#4ade80' }}>All players ready - Turn advancing...</div>
+                  ) : sessionInfo.playersEndedTurn && sessionInfo.playersEndedTurn.includes(gameState.localPlayerId) ? (
+                    <div style={{ color: '#fbbf24' }}>Waiting for other players...</div>
+                  ) : (
+                    <div style={{ color: '#60a5fa' }}>Your turn - Take your actions</div>
+                  )
                 )}
               </div>
             )}
@@ -425,15 +444,23 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
         <button 
           style={{
             ...buttonStyle,
-            opacity: (gameState.isMultiplayer && sessionInfo?.playersEndedTurn?.includes(gameState.localPlayerId)) ? 0.5 : 1,
-            cursor: (gameState.isMultiplayer && sessionInfo?.playersEndedTurn?.includes(gameState.localPlayerId)) ? 'not-allowed' : 'pointer'
+            opacity: (gameState.isMultiplayer && 
+              ((sessionInfo?.isSequentialMode && gameState.currentPlayerId !== gameState.localPlayerId) ||
+               (!sessionInfo?.isSequentialMode && sessionInfo?.playersEndedTurn?.includes(gameState.localPlayerId)))) ? 0.5 : 1,
+            cursor: (gameState.isMultiplayer && 
+              ((sessionInfo?.isSequentialMode && gameState.currentPlayerId !== gameState.localPlayerId) ||
+               (!sessionInfo?.isSequentialMode && sessionInfo?.playersEndedTurn?.includes(gameState.localPlayerId)))) ? 'not-allowed' : 'pointer'
           }}
           onClick={handleEndTurn}
-          disabled={gameState.isMultiplayer && sessionInfo?.playersEndedTurn?.includes(gameState.localPlayerId) === true}
+          disabled={gameState.isMultiplayer && 
+            ((sessionInfo?.isSequentialMode && gameState.currentPlayerId !== gameState.localPlayerId) ||
+             (!sessionInfo?.isSequentialMode && sessionInfo?.playersEndedTurn?.includes(gameState.localPlayerId) === true))}
         >
-          {gameState.isMultiplayer && sessionInfo?.playersEndedTurn?.includes(gameState.localPlayerId) 
-            ? 'Turn Ended' 
-            : 'End Turn'}
+          {gameState.isMultiplayer && sessionInfo?.isSequentialMode 
+            ? (gameState.currentPlayerId === gameState.localPlayerId ? 'End Turn' : 'Not Your Turn')
+            : (gameState.isMultiplayer && sessionInfo?.playersEndedTurn?.includes(gameState.localPlayerId) 
+              ? 'Turn Ended' 
+              : 'End Turn')}
         </button>
 
         {selectedUnit && (

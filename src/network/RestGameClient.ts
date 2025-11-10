@@ -153,7 +153,13 @@ export class RestGameClient implements IGameClient {
 
   isMyTurn(): boolean {
     if (!this.connection || !this.session) return false;
-    // In simultaneous turns, all players can act unless they've ended their turn
+    
+    // Sequential mode (war): only current player can act
+    if (this.session.isSequentialMode) {
+      return this.session.currentPlayerId === this.connection.playerId;
+    }
+    
+    // Simultaneous mode: all players can act unless they've ended their turn
     if (this.session.playersEndedTurn && this.session.playersEndedTurn.includes(this.connection.playerId)) {
       return false; // Player has already ended their turn
     }

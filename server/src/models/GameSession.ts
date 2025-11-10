@@ -22,6 +22,8 @@ export class GameSessionModel implements IGameSession {
   private lastStateUpdate: string = new Date().toISOString();
   // Track which players have ended their turn this round
   private playersEndedTurn = new Set<number>();
+  // Track wars between players (for hybrid turn system)
+  private wars: Array<{ player1Id: number; player2Id: number; declaredAt: string; isActive: boolean }> = [];
 
   constructor(
     id: string,
@@ -38,6 +40,7 @@ export class GameSessionModel implements IGameSession {
         name: creatorName,
         civilizationId: creatorCivId,
         isConnected: true,
+        isHuman: true, // Assume human by default
       },
     ];
     this.currentTurn = 1;
@@ -66,6 +69,7 @@ export class GameSessionModel implements IGameSession {
       name: playerName,
       civilizationId: civId,
       isConnected: true,
+      isHuman: true, // Assume human by default
     });
 
     this.updatedAt = new Date().toISOString();
@@ -99,8 +103,71 @@ export class GameSessionModel implements IGameSession {
   }
 
   /**
+   * Check if two players are at war
+   */
+  arePlayersAtWar(player1Id: number, player2Id: number): boolean {
+    return this.wars.some(
+      war =>
+        war.isActive &&
+        ((war.player1Id === player1Id && war.player2Id === player2Id) ||
+          (war.player1Id === player2Id && war.player2Id === player1Id)),
+    );
+  }
+
+  /**
+   * Check if any human players are at war (determines turn mode)
+   */
+  hasActiveHumanWars(): boolean {
+    const humanPlayers = this.players.filter(p => p.isHuman !== false).map(p => p.id);
+    
+    // Check if any pair of human players are at war
+    for (let i = 0; i < humanPlayers.length; i++) {
+      for (let j = i + 1; j < humanPlayers.length; j++) {
+        if (this.arePlayersAtWar(humanPlayers[i], humanPlayers[j])) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Declare war between two players
+   */
+  declareWar(player1Id: number, player2Id: number): void {
+    // Check if war already exists
+    if (this.arePlayersAtWar(player1Id, player2Id)) {
+      return; // War already exists
+    }
+
+    this.wars.push({
+      player1Id,
+      player2Id,
+      declaredAt: new Date().toISOString(),
+      isActive: true,
+    });
+    this.updatedAt = new Date().toISOString();
+  }
+
+  /**
+   * End war between two players
+   */
+  endWar(player1Id: number, player2Id: number): void {
+    const warIndex = this.wars.findIndex(
+      war =>
+        ((war.player1Id === player1Id && war.player2Id === player2Id) ||
+          (war.player1Id === player2Id && war.player2Id === player1Id)) &&
+        war.isActive,
+    );
+    if (warIndex !== -1) {
+      this.wars[warIndex].isActive = false;
+      this.updatedAt = new Date().toISOString();
+    }
+  }
+
+  /**
    * Mark a player as having ended their turn
-   * Returns true if all players have ended their turn (ready to advance)
+   * Returns true if turn should advance (all players ended in simultaneous, or current player ended in sequential)
    */
   playerEndTurn(playerId: number): boolean {
     // Validate player exists
@@ -108,20 +175,42 @@ export class GameSessionModel implements IGameSession {
       throw new Error('Player not in game');
     }
 
-    this.playersEndedTurn.add(playerId);
-    this.updatedAt = new Date().toISOString();
+    const isSequentialMode = this.hasActiveHumanWars();
 
-    // Check if all active players have ended their turn
-    const activePlayers = this.players.filter(p => p.isConnected).map(p => p.id);
-    const allEnded = activePlayers.every(id => this.playersEndedTurn.has(id));
+    if (isSequentialMode) {
+      // Sequential mode: only current player can end turn
+      if (this.currentPlayerId !== playerId) {
+        throw new Error('Not your turn');
+      }
 
-    if (allEnded) {
-      // Advance to next turn
-      this.advanceTurn();
-      return true;
+      // Advance to next player's turn
+      this.advanceToNextPlayer();
+      
+      // Check if we've completed a full round (all players have had their turn)
+      const activePlayers = this.players.filter(p => p.isConnected).map(p => p.id);
+      if (this.currentPlayerId === activePlayers[0]) {
+        // We've cycled back to the first player - advance the turn
+        this.advanceTurn();
+        return true;
+      }
+      return false;
+    } else {
+      // Simultaneous mode: all players can act, turn advances when all end
+      this.playersEndedTurn.add(playerId);
+      this.updatedAt = new Date().toISOString();
+
+      // Check if all active players have ended their turn
+      const activePlayers = this.players.filter(p => p.isConnected).map(p => p.id);
+      const allEnded = activePlayers.every(id => this.playersEndedTurn.has(id));
+
+      if (allEnded) {
+        // Advance to next turn
+        this.advanceTurn();
+        return true;
+      }
+
+      return false;
     }
-
-    return false;
   }
 
   /**
@@ -131,10 +220,29 @@ export class GameSessionModel implements IGameSession {
     this.currentTurn++;
     // Clear ended turn tracking for new turn
     this.playersEndedTurn.clear();
-    // In simultaneous turns, all players can act, so we don't change currentPlayerId
-    // (or you could use it to track turn order if needed)
+    
+    // In sequential mode (war), set to first player
+    // In simultaneous mode, currentPlayerId can be any player (not strictly used)
+    if (this.hasActiveHumanWars()) {
+      const activePlayers = this.players.filter(p => p.isConnected).map(p => p.id).sort();
+      if (activePlayers.length > 0) {
+        this.currentPlayerId = activePlayers[0];
+      }
+    }
+    
     this.updatedAt = new Date().toISOString();
     this.lastStateUpdate = new Date().toISOString();
+  }
+
+  /**
+   * Advance to the next player's turn (sequential mode only)
+   */
+  private advanceToNextPlayer(): void {
+    const activePlayers = this.players.filter(p => p.isConnected).map(p => p.id).sort();
+    const currentIndex = activePlayers.indexOf(this.currentPlayerId);
+    const nextIndex = (currentIndex + 1) % activePlayers.length;
+    this.currentPlayerId = activePlayers[nextIndex];
+    this.updatedAt = new Date().toISOString();
   }
 
   /**
@@ -178,10 +286,15 @@ export class GameSessionModel implements IGameSession {
    * Get extended game info including turn status
    */
   getExtendedInfo() {
+    const isSequentialMode = this.hasActiveHumanWars();
     return {
       ...this.toJSON(),
       playersEndedTurn: this.getPlayersEndedTurn(),
-      allPlayersEnded: this.players.filter(p => p.isConnected).every(p => this.playersEndedTurn.has(p.id)),
+      allPlayersEnded: isSequentialMode 
+        ? false // Not applicable in sequential mode
+        : this.players.filter(p => p.isConnected).every(p => this.playersEndedTurn.has(p.id)),
+      isSequentialMode,
+      wars: this.wars.filter(w => w.isActive),
     };
   }
 }

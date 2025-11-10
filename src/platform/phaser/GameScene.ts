@@ -170,6 +170,7 @@ export class GameScene extends Phaser.Scene {
             this.game.events.emit('session-update', {
               playersEndedTurn: session.playersEndedTurn,
               allPlayersEnded: session.allPlayersEnded,
+              isSequentialMode: session.isSequentialMode,
             });
           }
         }, 2000); // Poll every 2 seconds

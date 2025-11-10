@@ -184,5 +184,55 @@ router.get('/:id/state', async (req: Request<{ id: string }, GameStateUpdate>, r
   }
 });
 
+/**
+ * POST /api/games/:id/war
+ * Declare war between two players (triggers sequential turn mode)
+ */
+router.post('/:id/war', async (req: Request<{ id: string }>, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { player1Id, player2Id } = req.body;
+
+    if (player1Id === undefined || player2Id === undefined) {
+      return res.status(400).json({ error: 'Missing player IDs' } as any);
+    }
+
+    await gameSessionService.declareWar(id, player1Id, player2Id);
+    const game = await gameSessionService.getGame(id);
+    
+    res.json({
+      success: true,
+      game: game?.getExtendedInfo(),
+    });
+  } catch (error) {
+    res.status(400).json({ error: (error as Error).message } as any);
+  }
+});
+
+/**
+ * DELETE /api/games/:id/war
+ * End war between two players (returns to simultaneous turn mode)
+ */
+router.delete('/:id/war', async (req: Request<{ id: string }>, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { player1Id, player2Id } = req.body;
+
+    if (player1Id === undefined || player2Id === undefined) {
+      return res.status(400).json({ error: 'Missing player IDs' } as any);
+    }
+
+    await gameSessionService.endWar(id, player1Id, player2Id);
+    const game = await gameSessionService.getGame(id);
+    
+    res.json({
+      success: true,
+      game: game?.getExtendedInfo(),
+    });
+  } catch (error) {
+    res.status(400).json({ error: (error as Error).message } as any);
+  }
+});
+
 export default router;
 

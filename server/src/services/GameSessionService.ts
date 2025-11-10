@@ -86,15 +86,24 @@ export class GameSessionService {
       throw new Error('Player not in game');
     }
 
-    // For EndTurn, check if player already ended their turn
-    if (intent.type === 'EndTurn') {
-      if (game.hasPlayerEndedTurn(playerId)) {
-        throw new Error('You have already ended your turn this round');
+    const isSequentialMode = game.hasActiveHumanWars();
+
+    // For sequential mode (war), check if it's the player's turn
+    if (isSequentialMode) {
+      if (game.currentPlayerId !== playerId) {
+        throw new Error('Not your turn');
       }
     } else {
-      // For other actions, check if player has already ended their turn
-      if (game.hasPlayerEndedTurn(playerId)) {
-        throw new Error('Cannot perform actions after ending your turn');
+      // For simultaneous mode, check if player has already ended their turn
+      if (intent.type === 'EndTurn') {
+        if (game.hasPlayerEndedTurn(playerId)) {
+          throw new Error('You have already ended your turn this round');
+        }
+      } else {
+        // For other actions, check if player has already ended their turn
+        if (game.hasPlayerEndedTurn(playerId)) {
+          throw new Error('Cannot perform actions after ending your turn');
+        }
       }
     }
 
@@ -134,6 +143,37 @@ export class GameSessionService {
       actions,
       lastUpdate: game.getLastStateUpdate(),
     };
+  }
+
+  /**
+   * Declare war between two players
+   */
+  async declareWar(sessionId: string, player1Id: number, player2Id: number): Promise<void> {
+    const game = await this.repository.findById(sessionId);
+    if (!game) {
+      throw new Error('Game not found');
+    }
+
+    // Validate both players exist
+    if (!game.players.some(p => p.id === player1Id) || !game.players.some(p => p.id === player2Id)) {
+      throw new Error('One or both players not found');
+    }
+
+    game.declareWar(player1Id, player2Id);
+    await this.repository.update(game);
+  }
+
+  /**
+   * End war between two players
+   */
+  async endWar(sessionId: string, player1Id: number, player2Id: number): Promise<void> {
+    const game = await this.repository.findById(sessionId);
+    if (!game) {
+      throw new Error('Game not found');
+    }
+
+    game.endWar(player1Id, player2Id);
+    await this.repository.update(game);
   }
 
   /**

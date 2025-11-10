@@ -96,6 +96,8 @@ export interface GameSession {
   // Extended info (optional, for detailed turn status)
   playersEndedTurn?: number[]; // Players who have ended their turn this round
   allPlayersEnded?: boolean; // Whether all players have ended their turn
+  isSequentialMode?: boolean; // Whether turns are sequential (war) or simultaneous
+  wars?: Array<{ player1Id: number; player2Id: number; declaredAt: string; isActive: boolean }>; // Active wars
 }
 
 /**
@@ -106,6 +108,17 @@ export interface PlayerInfo {
   name: string;
   civilizationId: string;
   isConnected: boolean;
+  isHuman?: boolean; // Whether this is a human player (vs AI/bot)
+}
+
+/**
+ * Represents a war between two players
+ */
+export interface War {
+  player1Id: number;
+  player2Id: number;
+  declaredAt: string;
+  isActive: boolean;
 }
 
 /**

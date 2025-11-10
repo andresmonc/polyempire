@@ -22,14 +22,16 @@ export class NetworkIntentQueue extends IntentQueue {
    * If in local mode, it just adds it to the local queue.
    */
   push(intent: Intent): void {
-    // For EndTurn in multiplayer, check if player already ended their turn
+    // For EndTurn in multiplayer, check if player already ended their turn (only in simultaneous mode)
     if (intent.type === 'EndTurn' && this.gameClient) {
       const session = this.gameClient.getSession();
       const connection = this.gameClient.getConnection();
-      if (session && connection && session.playersEndedTurn && session.playersEndedTurn.includes(connection.playerId)) {
+      // In simultaneous mode, check if already ended
+      if (session && connection && !session.isSequentialMode && session.playersEndedTurn && session.playersEndedTurn.includes(connection.playerId)) {
         console.warn('Cannot end turn - already ended this round');
         return; // Don't add to queue if already ended
       }
+      // In sequential mode, isMyTurn() will handle validation
     }
 
     // Always add to local queue for immediate UI feedback
