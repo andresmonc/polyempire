@@ -374,13 +374,20 @@ export class GameScene extends Phaser.Scene {
         let existingEntity = this.serverEntityIdMap.get(serverEntity.id);
         
         // If not found by ID mapping, try to find by owner and position
+        // IMPORTANT: Only match if owner matches exactly to prevent cross-player mix-ups
         if (!existingEntity) {
           existingEntity = Array.from(this.ecsWorld.view(Components.Unit, Components.Owner)).find(
             (e) => {
               const owner = this.ecsWorld.getComponent(e, Components.Owner);
               const transform = this.ecsWorld.getComponent(e, Components.TransformTile);
-              // Match by owner and exact position (or very close - within 1 tile)
+              // Match by owner (MUST match exactly) and exact position (or very close - within 1 tile)
+              // Also check that this entity isn't already mapped to a different server entity
               if (owner?.playerId === serverEntity.ownerId && transform) {
+                const currentMappedId = this.entityIdMap.get(e);
+                // If already mapped to a different server entity, don't remap it
+                if (currentMappedId !== undefined && currentMappedId !== serverEntity.id) {
+                  return false;
+                }
                 const dx = Math.abs(transform.tx - serverEntity.position.tx);
                 const dy = Math.abs(transform.ty - serverEntity.position.ty);
                 return dx <= 1 && dy <= 1;
@@ -419,8 +426,15 @@ export class GameScene extends Phaser.Scene {
             }
             
             // Store server entity ID mapping for this local entity
-            this.entityIdMap.set(entity, serverEntity.id);
-            this.serverEntityIdMap.set(serverEntity.id, entity);
+            // Verify ownership before mapping to prevent cross-player mix-ups
+            const owner = this.ecsWorld.getComponent(entity, Components.Owner);
+            if (owner && owner.playerId === serverEntity.ownerId) {
+              this.entityIdMap.set(entity, serverEntity.id);
+              this.serverEntityIdMap.set(serverEntity.id, entity);
+              console.log(`[GameScene] Mapped local entity ${entity} (player ${owner.playerId}) to server entity ${serverEntity.id} (player ${serverEntity.ownerId})`);
+            } else {
+              console.error(`[GameScene] Ownership mismatch when creating entity mapping: local entity ${entity} owner ${owner?.playerId} vs server entity ${serverEntity.id} owner ${serverEntity.ownerId}`);
+            }
           } else {
             console.error(`[GameScene] Failed to create entity for player ${serverEntity.ownerId}`);
           }
@@ -431,9 +445,20 @@ export class GameScene extends Phaser.Scene {
           const owner = this.ecsWorld.getComponent(existingEntity, Components.Owner);
           
           // Update entity ID mapping (in case it wasn't set before)
-          if (!this.entityIdMap.has(existingEntity) || this.entityIdMap.get(existingEntity) !== serverEntity.id) {
-            this.entityIdMap.set(existingEntity, serverEntity.id);
-            this.serverEntityIdMap.set(serverEntity.id, existingEntity);
+          // IMPORTANT: Verify ownership matches before updating mapping to prevent cross-player entity ID mix-ups
+          if (owner && owner.playerId === serverEntity.ownerId) {
+            const currentMappedId = this.entityIdMap.get(existingEntity);
+            if (currentMappedId !== serverEntity.id) {
+              // Remove old mapping if it exists
+              if (currentMappedId !== undefined) {
+                this.serverEntityIdMap.delete(currentMappedId);
+              }
+              this.entityIdMap.set(existingEntity, serverEntity.id);
+              this.serverEntityIdMap.set(serverEntity.id, existingEntity);
+            }
+          } else if (owner && owner.playerId !== serverEntity.ownerId) {
+            // Ownership mismatch - this shouldn't happen, but log it
+            console.warn(`[GameScene] Ownership mismatch when syncing entity: local owner ${owner.playerId} vs server owner ${serverEntity.ownerId}`);
           }
           
           // Only update if it's not the local player's unit (server is authoritative)

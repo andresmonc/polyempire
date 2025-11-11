@@ -77,23 +77,30 @@ export class NetworkIntentQueue extends IntentQueue {
     
     if (!entityIdMap || !(entityIdMap instanceof Map)) {
       // No mapping available, return as-is
+      console.warn('[NetworkIntentQueue] No entityIdMap available for translation');
       return intent;
     }
     
     // Translate entity IDs based on intent type
     switch (intent.type) {
       case 'MoveTo':
-        const serverEntityId = entityIdMap.get(intent.payload.entity);
-        if (serverEntityId !== undefined) {
-          return {
-            ...intent,
-            payload: {
-              ...intent.payload,
-              entity: serverEntityId,
-            },
-          };
+        const localEntityId = intent.payload.entity;
+        const serverEntityId = entityIdMap.get(localEntityId);
+        if (serverEntityId === undefined) {
+          console.warn(`[NetworkIntentQueue] No server entity ID mapping found for local entity ${localEntityId}`);
+          // Don't send the intent if we can't translate it
+          return intent;
         }
-        break;
+        // Log the translation for debugging
+        const connection = gameClient?.getConnection();
+        console.log(`[NetworkIntentQueue] Translating MoveTo: local entity ${localEntityId} -> server entity ${serverEntityId} for player ${connection?.playerId}`);
+        return {
+          ...intent,
+          payload: {
+            ...intent.payload,
+            entity: serverEntityId,
+          },
+        };
       case 'FoundCity':
         const serverCityEntityId = entityIdMap.get(intent.payload.entity);
         if (serverCityEntityId !== undefined) {

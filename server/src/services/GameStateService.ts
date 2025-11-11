@@ -92,15 +92,24 @@ export class GameStateService {
 
     switch (intent.type) {
       case 'MoveTo': {
-        const entity = sessionEntities.get(intent.payload.entity);
-        if (entity && entity.ownerId === playerId) {
-          // Validate movement points
-          const mp = (entity.data.mp as number) || 0;
-          if (mp > 0) {
-            entity.position = intent.payload.target;
-            // Deduct movement points
-            entity.data.mp = Math.max(0, mp - 1);
-          }
+        const entityId = intent.payload.entity;
+        const entity = sessionEntities.get(entityId);
+        if (!entity) {
+          console.warn(`[GameStateService] MoveTo: Entity ${entityId} not found for player ${playerId} in session ${sessionId}`);
+          return;
+        }
+        if (entity.ownerId !== playerId) {
+          console.error(`[GameStateService] MoveTo: Ownership mismatch! Entity ${entityId} is owned by player ${entity.ownerId}, but player ${playerId} tried to move it`);
+          return;
+        }
+        // Validate movement points
+        const mp = (entity.data.mp as number) || 0;
+        if (mp > 0) {
+          entity.position = intent.payload.target;
+          // Deduct movement points
+          entity.data.mp = Math.max(0, mp - 1);
+        } else {
+          console.warn(`[GameStateService] MoveTo: Entity ${entityId} has no movement points (mp=${mp})`);
         }
         break;
       }
