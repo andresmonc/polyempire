@@ -1,0 +1,17 @@
+node_modules
+server/node_modules
+dist
+server/dist
+*.log
+.env
+.env.local
+.git
+.gitignore
+README.md
+*.md
+.vscode
+.idea
+coverage
+*.test.ts
+*.test.tsx
+
