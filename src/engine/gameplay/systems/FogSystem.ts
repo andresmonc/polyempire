@@ -67,30 +67,57 @@ export class FogSystem extends System {
     }
 
     if (needsRecompute) {
-      // Filter units and cities owned by the current active player(s)
-      // In multiplayer, this could be extended to show fog for all human players
-      const playerUnits = units
-        .map(entity => ({
-          entity,
-          owner: this.world.getComponent(entity, Owner)!,
-          unit: this.world.getComponent(entity, Unit)!,
-          pos: this.world.getComponent(entity, TransformTile)!,
-        }))
-        .filter(u => this.gameState.isCurrentPlayer(u.owner.playerId));
+      // Group units and cities by player ID for per-player fog computation
+      const unitsByPlayer = new Map<number, Array<{ pos: { tx: number; ty: number }; sight: number }>>();
+      const citiesByPlayer = new Map<number, Array<{ pos: { tx: number; ty: number }; sight: number }>>();
 
-      const playerCities = cities
-        .map(entity => ({
-          entity,
-          owner: this.world.getComponent(entity, Owner)!,
-          city: this.world.getComponent(entity, City)!,
-          pos: this.world.getComponent(entity, TransformTile)!,
-        }))
-        .filter(c => this.gameState.isCurrentPlayer(c.owner.playerId));
+      // Process all units and group by player
+      for (const entity of units) {
+        const owner = this.world.getComponent(entity, Owner)!;
+        const unit = this.world.getComponent(entity, Unit)!;
+        const pos = this.world.getComponent(entity, TransformTile)!;
+        
+        if (!unitsByPlayer.has(owner.playerId)) {
+          unitsByPlayer.set(owner.playerId, []);
+        }
+        unitsByPlayer.get(owner.playerId)!.push({
+          pos: { tx: pos.tx, ty: pos.ty },
+          sight: unit.sight,
+        });
+      }
 
-      this.fogOfWar.recompute(
-        playerUnits.map(u => ({ pos: { tx: u.pos.tx, ty: u.pos.ty }, sight: u.unit.sight })),
-        playerCities.map(c => ({ pos: { tx: c.pos.tx, ty: c.pos.ty }, sight: c.city.getSightRange() })),
-      );
+      // Process all cities and group by player
+      for (const entity of cities) {
+        const owner = this.world.getComponent(entity, Owner)!;
+        const city = this.world.getComponent(entity, City)!;
+        const pos = this.world.getComponent(entity, TransformTile)!;
+        
+        if (!citiesByPlayer.has(owner.playerId)) {
+          citiesByPlayer.set(owner.playerId, []);
+        }
+        citiesByPlayer.get(owner.playerId)!.push({
+          pos: { tx: pos.tx, ty: pos.ty },
+          sight: city.getSightRange(),
+        });
+      }
+
+      // Compute fog for each player separately
+      const allPlayerIds = new Set([
+        ...unitsByPlayer.keys(),
+        ...citiesByPlayer.keys(),
+      ]);
+
+      for (const playerId of allPlayerIds) {
+        const playerUnits = unitsByPlayer.get(playerId) || [];
+        const playerCities = citiesByPlayer.get(playerId);
+
+        this.fogOfWar.recompute(
+          playerId,
+          playerUnits,
+          playerCities,
+        );
+      }
+
       this.hasComputedInitialFog = true;
     }
   }

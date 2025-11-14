@@ -1134,8 +1134,10 @@ export class GameScene extends Phaser.Scene {
       const sprite = this.tileSprites.get(entity);
       const transform = this.ecsWorld.getComponent(entity, Components.TransformTile)!;
       if (sprite) {
-        const isVisible = this.fogOfWar.isVisible(transform.tx, transform.ty);
-        const isRevealed = this.fogOfWar.isRevealed(transform.tx, transform.ty);
+        // Use local player's fog state for rendering
+        const playerId = this.gameState.localPlayerId;
+        const isVisible = this.fogOfWar.isVisible(transform.tx, transform.ty, playerId);
+        const isRevealed = this.fogOfWar.isRevealed(transform.tx, transform.ty, playerId);
         if (isVisible) visibleCount++;
         else if (isRevealed) revealedCount++;
         else unrevealedCount++;
