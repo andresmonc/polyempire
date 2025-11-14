@@ -25,6 +25,9 @@ import {
   SELECTION_COLOR,
   TILE_H,
   TILE_W,
+  FOG_COLOR,
+  FOG_ALPHA_REVEALED,
+  FOG_ALPHA_UNREVEALED,
 } from '@config/game';
 import { tileToWorld } from '@engine/math/iso';
 import { chebyshevDistance } from '@engine/math/grid';
@@ -52,6 +55,7 @@ export class GameScene extends Phaser.Scene {
   private cityBorders = new Map<Entity, Phaser.GameObjects.Graphics>();
   private unitsContainer!: Phaser.GameObjects.Container;
   private pathPreview!: Phaser.GameObjects.Graphics;
+  private fogLayer!: Phaser.GameObjects.Container;
   private controls!: Phaser.Cameras.Controls.SmoothedKeyControl;
   public civilizationProductionSystem!: Systems.CivilizationProductionSystem; // Made public for ProductionSystem access
   private isDragging = false;
@@ -100,6 +104,10 @@ export class GameScene extends Phaser.Scene {
 
     // --- World Creation ---
     this.createTileEntities();
+    
+    // Create fog layer that will render on top of everything
+    this.fogLayer = this.add.container(0, 0);
+    this.fogLayer.setDepth(10000); // Very high depth to ensure it's on top
     
     // Initialize units container (needed for both single and multiplayer)
     this.unitsContainer = this.add.container(0, 0);
@@ -1112,13 +1120,54 @@ export class GameScene extends Phaser.Scene {
 
   private updateTileSprites() {
     const entities = this.ecsWorld.view(Components.Tile, Components.TransformTile);
+    let visibleCount = 0;
+    let revealedCount = 0;
+    let unrevealedCount = 0;
+    
+    // Clear existing fog overlays if fog layer exists
+    if (!this.fogLayer) {
+      return; // Fog layer not initialized yet
+    }
+    this.fogLayer.removeAll(true);
+    
     for (const entity of entities) {
       const sprite = this.tileSprites.get(entity);
       const transform = this.ecsWorld.getComponent(entity, Components.TransformTile)!;
       if (sprite) {
         const isVisible = this.fogOfWar.isVisible(transform.tx, transform.ty);
         const isRevealed = this.fogOfWar.isRevealed(transform.tx, transform.ty);
+        if (isVisible) visibleCount++;
+        else if (isRevealed) revealedCount++;
+        else unrevealedCount++;
+        
+        // Update tile sprite fog (for backwards compatibility)
         sprite.updateFog(isVisible, isRevealed);
+        
+        // Create fog overlay in separate layer that renders on top
+        if (!isVisible) {
+          const worldPos = tileToWorld(transform);
+          const fogOverlay = this.add.graphics();
+          const alpha = isRevealed ? FOG_ALPHA_REVEALED : FOG_ALPHA_UNREVEALED;
+          
+          const points = [
+            { x: 0, y: -TILE_H / 2 },
+            { x: TILE_W / 2, y: 0 },
+            { x: 0, y: TILE_H / 2 },
+            { x: -TILE_W / 2, y: 0 },
+          ];
+          
+          fogOverlay.fillStyle(FOG_COLOR, 1);
+          fogOverlay.beginPath();
+          fogOverlay.moveTo(points[0].x, points[0].y);
+          fogOverlay.lineTo(points[1].x, points[1].y);
+          fogOverlay.lineTo(points[2].x, points[2].y);
+          fogOverlay.lineTo(points[3].x, points[3].y);
+          fogOverlay.closePath();
+          fogOverlay.fillPath();
+          fogOverlay.setAlpha(alpha);
+          fogOverlay.setPosition(worldPos.x, worldPos.y);
+          this.fogLayer.add(fogOverlay);
+        }
       }
     }
   }

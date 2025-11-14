@@ -15,6 +15,7 @@ export class FogSystem extends System {
   private gameState: GameState;
   private lastUnitPositions = new Map<number, string>();
   private lastCityPopulations = new Map<number, number>();
+  private hasComputedInitialFog = false;
 
   constructor(fogOfWar: FogOfWar, intents: IntentQueue, gameState: GameState) {
     super();
@@ -28,7 +29,7 @@ export class FogSystem extends System {
     const turnBegan = this.intents.pop(isIntent('TurnBegan'));
     const units = this.world.view(Unit, TransformTile, Owner);
     const cities = this.world.view(City, TransformTile, Owner);
-    let needsRecompute = !!turnBegan;
+    let needsRecompute = !!turnBegan || !this.hasComputedInitialFog;
 
     // Check if any unit has moved since the last check
     // Also clean up positions for entities that no longer exist
@@ -90,6 +91,7 @@ export class FogSystem extends System {
         playerUnits.map(u => ({ pos: { tx: u.pos.tx, ty: u.pos.ty }, sight: u.unit.sight })),
         playerCities.map(c => ({ pos: { tx: c.pos.tx, ty: c.pos.ty }, sight: c.city.getSightRange() })),
       );
+      this.hasComputedInitialFog = true;
     }
   }
 }

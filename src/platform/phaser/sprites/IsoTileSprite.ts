@@ -17,6 +17,7 @@ import { isoToWorld } from '@engine/math/iso';
 export class IsoTileSprite extends Phaser.GameObjects.Container {
   private fogOverlay: Phaser.GameObjects.Graphics;
   private baseTile: Phaser.GameObjects.GameObject;
+  private outline: Phaser.GameObjects.Graphics;
 
   constructor(
     scene: Phaser.Scene,
@@ -53,19 +54,20 @@ export class IsoTileSprite extends Phaser.GameObjects.Container {
 
     // --- Add outline stroke on top ---
     // Use Graphics for precise grid line rendering
-    const outline = scene.add.graphics();
-    outline.lineStyle(1, 0x333333, 1);
-    outline.beginPath();
-    outline.moveTo(points[0].x, points[0].y); // Top
-    outline.lineTo(points[1].x, points[1].y); // Right
-    outline.lineTo(points[2].x, points[2].y); // Bottom
-    outline.lineTo(points[3].x, points[3].y); // Left
-    outline.closePath();
-    outline.strokePath();
-    this.add(outline);
+    this.outline = scene.add.graphics();
+    this.outline.lineStyle(1, 0x333333, 1);
+    this.outline.beginPath();
+    this.outline.moveTo(points[0].x, points[0].y); // Top
+    this.outline.lineTo(points[1].x, points[1].y); // Right
+    this.outline.lineTo(points[2].x, points[2].y); // Bottom
+    this.outline.lineTo(points[3].x, points[3].y); // Left
+    this.outline.closePath();
+    this.outline.strokePath();
+    this.add(this.outline);
 
     // --- Fog of war overlay ---
-    // Use Graphics for precise fog overlay rendering
+    // Note: Fog overlay is now rendered in a separate layer in GameScene for proper z-ordering
+    // This overlay in the tile sprite is kept for backwards compatibility but is hidden
     this.fogOverlay = scene.add.graphics();
     this.fogOverlay.fillStyle(FOG_COLOR, 1);
     this.fogOverlay.beginPath();
@@ -85,13 +87,9 @@ export class IsoTileSprite extends Phaser.GameObjects.Container {
    * @param isRevealed - Has the tile ever been seen?
    */
   public updateFog(isVisible: boolean, isRevealed: boolean) {
-    if (isVisible) {
-      this.fogOverlay.setAlpha(0); // Completely clear
-    } else if (isRevealed) {
-      this.fogOverlay.setAlpha(FOG_ALPHA_REVEALED); // Dim overlay
-    } else {
-      this.fogOverlay.setAlpha(FOG_ALPHA_UNREVEALED); // Dark shroud
-    }
+    // Note: Actual fog rendering is handled in GameScene's fogLayer
+    // This method is kept for backwards compatibility but the overlay is hidden
+    this.fogOverlay.setAlpha(0); // Hide this overlay since fog is rendered in separate layer
   }
 }
 
