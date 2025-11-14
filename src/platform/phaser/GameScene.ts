@@ -282,6 +282,12 @@ export class GameScene extends Phaser.Scene {
     // Apply any actions from the update
     // These are actions that other players performed
     update.actions.forEach((intent) => {
+      // Skip EndTurn actions from server - they're already processed server-side
+      // and we just need to update game state (turn/currentPlayerId) which happens above
+      if (intent.type === 'EndTurn') {
+        return; // Don't process EndTurn actions from server updates
+      }
+
       // For MoveTo actions from other players, apply them directly to update positions
       // (don't go through PathRequestSystem which checks ownership)
       if (intent.type === 'MoveTo' && this.gameState.isMultiplayer) {
