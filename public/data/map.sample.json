@@ -1,0 +1,19 @@
+{
+  "width": 20,
+  "height": 12,
+  "start": { "tx": 2, "ty": 2 },
+  "tiles": [
+    "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains",
+    "plains", "plains", "plains", "forest", "forest", "plains", "plains", "plains", "plains", "plains", "plains", "hills", "hills", "plains", "plains", "plains", "plains", "plains", "plains", "plains",
+    "plains", "plains", "plains", "forest", "forest", "plains", "plains", "plains", "plains", "plains", "hills", "mountains", "hills", "plains", "plains", "plains", "plains", "plains", "plains", "plains",
+    "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "hills", "mountains", "mountains", "hills", "plains", "plains", "plains", "water", "water", "water", "plains",
+    "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "hills", "hills", "plains", "plains", "plains", "water", "water", "water", "water", "water",
+    "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "water", "water", "water", "water", "water",
+    "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "water", "water", "water", "plains",
+    "plains", "plains", "plains", "forest", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains",
+    "plains", "plains", "forest", "forest", "forest", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains",
+    "plains", "plains", "plains", "forest", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains",
+    "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains",
+    "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains", "plains"
+  ]
+}

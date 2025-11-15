@@ -98,7 +98,6 @@ dist
 
 # Gatsby build output
 .cache/
-public
 
 # Jekyll build output
 _site

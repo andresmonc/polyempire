@@ -14,6 +14,7 @@ export interface BuildingData {
   productionCost: number;
   yields?: { food?: number; production?: number; gold?: number };
   cityBonus?: { populationGrowth?: number };
+  population?: number; // Population this building adds to the city
   terrainRequirements?: string[]; // Array of terrain types this building can be built on
   description?: string;
 }
@@ -151,6 +152,15 @@ export class BuildingFactory {
     // Create ScreenPos for the building
     const worldPos = tileToWorld(position);
     world.addComponent(building, new Components.ScreenPos(worldPos.x, worldPos.y));
+
+    // Increase city population if building provides population
+    if (buildingData.population && buildingData.population > 0) {
+      const city = world.getComponent(cityEntity, Components.City);
+      if (city) {
+        city.population += buildingData.population;
+        logger.info(`Building ${buildingType} added ${buildingData.population} population to city. New population: ${city.population}`);
+      }
+    }
 
     logger.info(`Building ${buildingType} created at (${position.tx}, ${position.ty})`);
     return building;

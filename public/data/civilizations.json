@@ -1,0 +1,76 @@
+{
+    "romans": {
+        "name": "Romans",
+        "color": "0xff0000",
+        "startingProduction": 5,
+        "cityYields": {
+            "food": 2,
+            "production": 1,
+            "gold": 0
+        },
+        "units": {
+            "settler": {
+                "name": "Colonist",
+                "mp": 2,
+                "sightRange": 1
+            },
+            "scout": {
+                "name": "Explorer"
+            }
+        },
+        "sprites": {
+            "unit": "unit",
+            "city": "city-roman"
+        }
+    },
+    "greeks": {
+        "name": "Greeks",
+        "color": "0x0000ff",
+        "startingProduction": 5,
+        "cityYields": {
+            "food": 3,
+            "production": 1,
+            "gold": 1
+        },
+        "units": {
+            "settler": {
+                "name": "Founder"
+            },
+            "scout": {
+                "name": "Scout",
+                "sightRange": 3
+            }
+        },
+        "sprites": {
+            "unit": "unit",
+            "city": "city"
+        }
+    },
+    "barbarians": {
+        "name": "Barbarians",
+        "color": "0x8b4513",
+        "startingProduction": 5,
+        "cityYields": {
+            "food": 1,
+            "production": 2,
+            "gold": 0
+        },
+        "units": {
+            "settler": {
+                "name": "Nomad",
+                "mp": 3
+            },
+            "scout": {
+                "name": "Raider",
+                "mp": 3,
+                "sightRange": 2,
+                "health": 30,
+                "maxHealth": 30
+            }
+        },
+        "sprites": {
+            "unit": "unit",
+            "city": "city"
+        }
+    }
+}

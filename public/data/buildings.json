@@ -1,0 +1,97 @@
+{
+  "granary": {
+    "name": "Granary",
+    "productionCost": 40,
+    "yields": {
+      "production": 1
+    },
+    "cityBonus": {},
+    "terrainRequirements": [],
+    "description": "Provides production bonus"
+  },
+  "barracks": {
+    "name": "Barracks",
+    "productionCost": 60,
+    "yields": {
+      "production": 1
+    },
+    "cityBonus": {},
+    "terrainRequirements": [],
+    "description": "Provides production bonus"
+  },
+  "lumberMill": {
+    "name": "Lumber Mill",
+    "productionCost": 50,
+    "yields": {
+      "production": 2
+    },
+    "cityBonus": {},
+    "terrainRequirements": ["forest"],
+    "description": "Can only be built on forest tiles. Provides production bonus."
+  },
+  "mine": {
+    "name": "Mine",
+    "productionCost": 50,
+    "yields": {
+      "production": 1,
+      "gold": 1
+    },
+    "cityBonus": {},
+    "terrainRequirements": ["hills", "mountains"],
+    "description": "Can only be built on hills or mountains. Provides production and gold."
+  },
+  "farm": {
+    "name": "Farm",
+    "productionCost": 30,
+    "yields": {},
+    "population": 2,
+    "cityBonus": {},
+    "terrainRequirements": ["plains"],
+    "description": "Can only be built on plains. Adds 2 population to the city."
+  },
+  "workshop": {
+    "name": "Workshop",
+    "productionCost": 50,
+    "yields": {
+      "production": 1
+    },
+    "population": 1,
+    "cityBonus": {},
+    "terrainRequirements": [],
+    "description": "Adds 1 population to the city and provides production bonus."
+  },
+  "windmill": {
+    "name": "Windmill",
+    "productionCost": 40,
+    "yields": {
+      "production": 1
+    },
+    "population": 1,
+    "cityBonus": {},
+    "terrainRequirements": [],
+    "description": "Adds 1 population to the city and provides production bonus."
+  },
+  "forge": {
+    "name": "Forge",
+    "productionCost": 60,
+    "yields": {
+      "production": 2
+    },
+    "population": 1,
+    "cityBonus": {},
+    "terrainRequirements": [],
+    "description": "Adds 1 population to the city and provides production bonus."
+  },
+  "sawmill": {
+    "name": "Sawmill",
+    "productionCost": 45,
+    "yields": {
+      "production": 1
+    },
+    "population": 1,
+    "cityBonus": {},
+    "terrainRequirements": ["forest"],
+    "description": "Can only be built on forest tiles. Adds 1 population to the city and provides production bonus."
+  }
+}
+
