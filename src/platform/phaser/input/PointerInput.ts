@@ -5,6 +5,7 @@ import { IntentQueue } from '@/state/IntentQueue';
 import Phaser from 'phaser';
 import * as Components from '@engine/gameplay/components';
 import { Unit, City, TransformTile, ScreenPos } from '@engine/gameplay/components';
+import { CityBorders } from '@/utils/cityBorders';
 
 /**
  * Handles pointer input from Phaser and translates it into game intents.
@@ -37,7 +38,11 @@ export class PointerInput {
     }
 
     if (pointer.rightButtonReleased()) {
-      this.handleRightClick();
+      // On right click, deselect the current unit
+      this.intents.push({
+        type: 'SelectEntity',
+        payload: { entity: null },
+      });
       return;
     }
 
@@ -137,24 +142,55 @@ export class PointerInput {
           type: 'MoveTo',
           payload: { entity: this.gameState.selectedEntity, target: targetTile },
         });
-      } else if (this.gameState.selectedEntity !== null) {
-        // Not in move mode but unit is selected - deselect it
-        this.intents.push({
-          type: 'SelectEntity',
-          payload: { entity: null },
-        });
+      } else {
+        // Check if tile is within a city's borders (owned by current player) - show context menu
+        interface GameSceneWithMapData {
+          mapData?: any;
+          game?: Phaser.Game;
+        }
+        const gameScene = this.scene as GameSceneWithMapData;
+        const mapData = gameScene.mapData;
+
+        if (mapData) {
+          const owningCity = CityBorders.getOwningCity(this.world, mapData, targetTile.tx, targetTile.ty);
+          
+          if (owningCity !== null) {
+            // Check if the city is owned by the current player
+            const owner = this.world.getComponent(owningCity, Components.Owner);
+            if (owner) {
+              const canControl = this.gameState.isMultiplayer
+                ? owner.playerId === this.gameState.localPlayerId
+                : this.gameState.isCurrentPlayer(owner.playerId);
+              
+              if (canControl) {
+                // Emit event to show context menu
+                if (gameScene.game) {
+                  gameScene.game.events.emit('show-tile-context-menu', {
+                    x: pointer.x,
+                    y: pointer.y,
+                    tx: targetTile.tx,
+                    ty: targetTile.ty,
+                    cityEntity: owningCity,
+                  });
+                  return; // Don't deselect, just show menu
+                }
+              }
+            }
+          }
+        }
+
+        // If not in city borders or not owned by player, deselect if something is selected
+        if (this.gameState.selectedEntity !== null) {
+          this.intents.push({
+            type: 'SelectEntity',
+            payload: { entity: null },
+          });
+        }
+        // If nothing is selected, clicking empty tile does nothing
       }
-      // If nothing is selected, clicking empty tile does nothing
     }
   };
 
-  private handleRightClick() {
-    // On right click, deselect the current unit
-    this.intents.push({
-      type: 'SelectEntity',
-      payload: { entity: null },
-    });
-  }
 
   /**
    * Finds the first unit entity located at a given tile coordinate.

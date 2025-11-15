@@ -644,6 +644,8 @@ export class GameScene extends Phaser.Scene {
       this.intentQueue,
       this.game.events,
       this,
+      this.gameState,
+      this.civilizationProductionSystem,
     ));
     this.ecsWorld.addSystem(new Systems.RenderSyncSystem()); // Must be last logic system
   }

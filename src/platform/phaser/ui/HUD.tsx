@@ -8,6 +8,8 @@ import { MapData } from '@engine/map/MapData';
 import { Terrain } from '@engine/map/Terrain';
 import { CityYieldsCalculator, CityYields } from '@/utils/cityYields';
 import { DEFAULT_CIVILIZATION_ID } from '@config/game';
+import { TileContextMenu } from './TileContextMenu';
+import { BuildingsData } from '@/utils/buildingFactory';
 
 interface HUDProps {
   game: Phaser.Game;
@@ -146,6 +148,15 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
   const [selectedCityYields, setSelectedCityYields] = useState<CityYields | null>(null);
   const [selectedTile, setSelectedTile] = useState<Terrain | null>(null);
   
+  // --- Tile Context Menu ---
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    tx: number;
+    ty: number;
+    cityEntity: Entity;
+  } | null>(null);
+  
   // --- Civilization Total Yields ---
   const [totalYields, setTotalYields] = useState<CityYields>({ production: 0, gold: 0 });
   const [availableProduction, setAvailableProduction] = useState<number>(0);
@@ -175,11 +186,33 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
     }) => {
       setSessionInfo(data);
     });
+    // Listen for tile context menu events
+    const handleShowContextMenu = (data: {
+      x: number;
+      y: number;
+      tx: number;
+      ty: number;
+      cityEntity: Entity;
+    }) => {
+      setContextMenu(data);
+    };
+    game.events.on('show-tile-context-menu', handleShowContextMenu);
+    
+    // Close context menu on right-click elsewhere (handled by PointerInput deselecting)
+    const handleDeselect = () => {
+      setContextMenu(null);
+    };
+    // Listen for SelectEntity with null to close menu
+    const handleUIUpdate = () => {
+      // Context menu will be closed by click-outside handler, but we can also close it here
+      // if needed for other reasons
+    };
 
     return () => {
       game.events.off('game-ready', handleGameReady);
       game.events.off('ui-update', forceUpdate);
       game.events.off('session-update', () => {});
+      game.events.off('show-tile-context-menu', handleShowContextMenu);
     };
   }, [game]);
 
@@ -682,6 +715,36 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
           {/* Future: Add commands for tiles, buildings, etc. */}
         </div>
       )}
+
+      {/* Tile Context Menu */}
+      {contextMenu && intentQueue && gameState && ecsWorld && (() => {
+        const gameScene = game.scene.getScene('GameScene');
+        if (!gameScene || !('cache' in gameScene) || !('mapData' in gameScene)) return null;
+        
+        try {
+          const buildingsData = (gameScene as any).cache.json.get('buildings') as BuildingsData;
+          const mapData = (gameScene as any).mapData as MapData;
+          
+          if (!buildingsData || !mapData) return null;
+          
+          return (
+            <TileContextMenu
+              x={contextMenu.x}
+              y={contextMenu.y}
+              tx={contextMenu.tx}
+              ty={contextMenu.ty}
+              cityEntity={contextMenu.cityEntity}
+              intentQueue={intentQueue}
+              buildingsData={buildingsData}
+              mapData={mapData}
+              onClose={() => setContextMenu(null)}
+            />
+          );
+        } catch (error) {
+          console.error('Error rendering context menu:', error);
+          return null;
+        }
+      })()}
     </>
   );
 };
