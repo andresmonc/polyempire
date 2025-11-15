@@ -65,7 +65,7 @@ export class FoundCitySystem extends System {
     // Create a city entity at this location
     const city = this.world.createEntity();
     this.world.addComponent(city, new Components.TransformTile(transform.tx, transform.ty));
-    this.world.addComponent(city, new Components.City(1, 0, 2)); // Start with population 1, 0 progress, 2 turns until growth
+    this.world.addComponent(city, new Components.City(1, 1)); // Start with population 1, level 1
     this.world.addComponent(city, new Components.Owner(owner.playerId));
     this.world.addComponent(city, new Components.Resources(0, 0, 0)); // Start with no resources
     this.world.addComponent(city, new Components.ProductionQueue()); // Empty production queue

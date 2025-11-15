@@ -591,7 +591,7 @@ export class GameScene extends Phaser.Scene {
       new Systems.TurnSystem(this.intentQueue, this.gameState, this.game.events),
     );
     this.ecsWorld.addSystem(new Systems.SelectionSystem(this.intentQueue, this.gameState, this.game.events));
-    this.ecsWorld.addSystem(new Systems.CityGrowthSystem(this.intentQueue));
+    this.ecsWorld.addSystem(new Systems.CityGrowthSystem()); // Checks if cities can level up based on population
     // Yield and production systems must run before FogSystem (which consumes TurnBegan)
     this.ecsWorld.addSystem(
       new Systems.YieldSystem(this.intentQueue, this.game.events, this.mapData, this.gameState),

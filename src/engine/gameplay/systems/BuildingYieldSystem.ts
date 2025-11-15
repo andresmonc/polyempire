@@ -62,25 +62,17 @@ export class BuildingYieldSystem extends System {
 
       let totalProduction = 0;
       let totalGold = 0;
-      let totalPopulationGrowth = 0;
 
       for (const { building } of cityBuildings) {
         // Add yields
         if (building.yields.production) totalProduction += building.yields.production;
         if (building.yields.gold) totalGold += building.yields.gold;
         
-        // Add city bonuses
-        if (building.cityBonus.populationGrowth) {
-          totalPopulationGrowth += building.cityBonus.populationGrowth;
-        }
+        // Population growth bonuses removed - cities no longer grow automatically
       }
 
       if (totalProduction > 0 || totalGold > 0) {
         resources.add(totalProduction, totalGold);
-      }
-
-      if (totalPopulationGrowth > 0) {
-        city.growthProgress += totalPopulationGrowth;
       }
     }
 

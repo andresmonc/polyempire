@@ -99,15 +99,14 @@ export class CivilizationComponent {
 }
 
 /**
- * Represents a city with population and growth mechanics.
+ * Represents a city with population and level-based growth mechanics.
  * Population determines the city's sight range for fog of war.
- * Growth uses a backoff mechanism: 1->2 takes 2 turns, 2->3 takes 4 turns, etc.
+ * Cities grow based on cumulative population requirements per level.
  */
 export class City {
   constructor(
-    public population: number = 1, // Current population
-    public growthProgress: number = 0, // Turns accumulated toward next growth
-    public turnsUntilGrowth: number = 2, // Turns needed to grow (doubles each growth)
+    public population: number = 1, // Current total population
+    public level: number = 1, // Current city level (starts at 1)
   ) {}
 
   /**
@@ -119,11 +118,54 @@ export class City {
   }
 
   /**
-   * Calculates the turns needed to grow from current population to next.
-   * Growth backoff: 1->2: 2 turns, 2->3: 4 turns, 3->4: 8 turns, etc.
+   * Calculates the cumulative population required to reach a given level.
+   * Level 1: 1 population (starting)
+   * Level 2: 3 population total (need 2 more from level 1)
+   * Level 3: 6 population total (need 3 more from level 2)
+   * Level 4: 12 population total (need 6 more from level 3)
+   * Level 5: 20 population total (need 8 more from level 4)
+   * 
+   * Pattern: Level 1→2: +2, Level 2→3: +3, Level 3→4: +6, Level 4→5: +8, then +10, +12, etc.
    */
-  static getTurnsUntilGrowth(population: number): number {
-    return Math.pow(2, population);
+  static getPopulationRequirementForLevel(targetLevel: number): number {
+    if (targetLevel <= 1) return 1;
+    if (targetLevel === 2) return 3;
+    if (targetLevel === 3) return 6;
+    if (targetLevel === 4) return 12;
+    if (targetLevel === 5) return 20;
+    
+    // For levels 6+, continue pattern: +10, +12, +14, etc. (2 * level)
+    let requirement = 20; // Level 5 requirement
+    for (let level = 6; level <= targetLevel; level++) {
+      requirement += 2 * (level - 1);
+    }
+    return requirement;
+  }
+
+  /**
+   * Gets the population requirement for the next level.
+   */
+  getPopulationRequirementForNextLevel(): number {
+    return City.getPopulationRequirementForLevel(this.level + 1);
+  }
+
+  /**
+   * Checks if the city has enough population to level up.
+   */
+  canLevelUp(): boolean {
+    return this.population >= this.getPopulationRequirementForNextLevel();
+  }
+
+  /**
+   * Levels up the city if population requirement is met.
+   * Returns true if level up occurred, false otherwise.
+   */
+  tryLevelUp(): boolean {
+    if (this.canLevelUp()) {
+      this.level += 1;
+      return true;
+    }
+    return false;
   }
 }
 
