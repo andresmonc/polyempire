@@ -109,20 +109,43 @@ export class BuildBuildingSystem extends System {
         return;
       }
 
-      // Spend production before creating building
+      // In multiplayer, skip optimistic production spending - wait for server confirmation
+      // Server will handle production spending and building creation
+      if (this.gameState.isMultiplayer) {
+        // In multiplayer, we only process BuildBuilding intents from server state updates
+        // Local BuildBuilding intents are sent to server and will come back via state sync
+        // Skip population changes - server is authoritative
+        const building = BuildingFactory.createBuilding(
+          this.world,
+          buildingType,
+          { tx, ty },
+          cityEntity,
+          this.gameScene,
+          true, // Skip population change - server is authoritative
+        );
+        
+        if (building) {
+          logger.info(`Building ${buildingType} placed at (${tx}, ${ty}) from server state`);
+          this.events.emit('ui-update');
+        }
+        return;
+      }
+
+      // Single-player: spend production optimistically
       const spent = this.civilizationProductionSystem.spendProduction(civId, productionCost);
       if (!spent) {
         logger.warn(`Failed to spend production for ${buildingType}`);
         return;
       }
 
-      // Create the building
+      // Create the building (population changes allowed in single-player)
       const building = BuildingFactory.createBuilding(
         this.world,
         buildingType,
         { tx, ty },
         cityEntity,
         this.gameScene,
+        false, // Allow population changes in single-player
       );
 
       if (building) {

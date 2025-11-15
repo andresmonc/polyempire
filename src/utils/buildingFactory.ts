@@ -97,6 +97,7 @@ export class BuildingFactory {
 
   /**
    * Creates a building entity on a tile.
+   * @param skipPopulationChange - If true, skip population changes (for server-authoritative multiplayer)
    */
   static createBuilding(
     world: World,
@@ -104,6 +105,7 @@ export class BuildingFactory {
     position: { tx: number; ty: number },
     cityEntity: Entity,
     gameScene: Phaser.Scene,
+    skipPopulationChange: boolean = false,
   ): Entity | null {
     const buildingData = this.getBuildingData(gameScene, buildingType);
     if (!buildingData) {
@@ -154,7 +156,8 @@ export class BuildingFactory {
     world.addComponent(building, new Components.ScreenPos(worldPos.x, worldPos.y));
 
     // Increase city population if building provides population
-    if (buildingData.population && buildingData.population > 0) {
+    // Skip in multiplayer - server is authoritative for population changes
+    if (!skipPopulationChange && buildingData.population && buildingData.population > 0) {
       const city = world.getComponent(cityEntity, Components.City);
       if (city) {
         city.population += buildingData.population;

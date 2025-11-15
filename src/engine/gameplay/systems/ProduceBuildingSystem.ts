@@ -123,6 +123,7 @@ export class ProduceBuildingSystem extends System {
           { tx: transform.tx, ty: transform.ty },
           cityEntity,
           this.gameScene,
+          this.gameState.isMultiplayer, // Skip population changes in multiplayer - server is authoritative
         );
         if (building) {
           buildingPlaced = true;
@@ -161,6 +162,7 @@ export class ProduceBuildingSystem extends System {
               tile,
               cityEntity,
               this.gameScene,
+              this.gameState.isMultiplayer, // Skip population changes in multiplayer - server is authoritative
             );
             if (building) {
               buildingPlaced = true;

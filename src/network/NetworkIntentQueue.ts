@@ -55,6 +55,15 @@ export class NetworkIntentQueue extends IntentQueue {
             console.warn('Action rejected by server:', response.error);
             // Remove from local queue if server rejected it
             this.removeIntent(intent);
+            
+            // For BuildBuilding, refund production if it was spent optimistically
+            // Note: In multiplayer, BuildBuildingSystem now skips optimistic spending,
+            // but we keep this here as a safety net for any edge cases
+            if (intent.type === 'BuildBuilding' && this.gameClient) {
+              // Production refund would be handled by BuildBuildingSystem if needed
+              // This is mainly for logging/debugging
+              console.warn(`BuildBuilding rejected by server, production should be refunded if spent`);
+            }
           } else if (intent.type === 'EndTurn' && response.success) {
             // After successfully ending turn, refresh session to update UI
             // The polling will handle this, but we can also trigger it manually
@@ -101,19 +110,20 @@ export class NetworkIntentQueue extends IntentQueue {
             entity: serverEntityId,
           },
         };
-      case 'FoundCity':
-        const serverCityEntityId = entityIdMap.get(intent.payload.entity);
-        if (serverCityEntityId !== undefined) {
+      case 'FoundCity': {
+        const serverFoundCityEntityId = entityIdMap.get(intent.payload.entity);
+        if (serverFoundCityEntityId !== undefined) {
           return {
             ...intent,
             payload: {
               ...intent.payload,
-              entity: serverCityEntityId,
+              entity: serverFoundCityEntityId,
             },
           };
         }
         break;
-      case 'Attack':
+      }
+      case 'Attack': {
         const serverAttackerId = entityIdMap.get(intent.payload.attacker);
         const serverTargetId = entityIdMap.get(intent.payload.target);
         if (serverAttackerId !== undefined && serverTargetId !== undefined) {
@@ -127,6 +137,46 @@ export class NetworkIntentQueue extends IntentQueue {
           };
         }
         break;
+      }
+      case 'BuildBuilding': {
+        const serverBuildCityEntityId = entityIdMap.get(intent.payload.cityEntity);
+        if (serverBuildCityEntityId !== undefined) {
+          return {
+            ...intent,
+            payload: {
+              ...intent.payload,
+              cityEntity: serverBuildCityEntityId,
+            },
+          };
+        }
+        break;
+      }
+      case 'ProduceBuilding': {
+        const serverProduceCityEntityId = entityIdMap.get(intent.payload.cityEntity);
+        if (serverProduceCityEntityId !== undefined) {
+          return {
+            ...intent,
+            payload: {
+              ...intent.payload,
+              cityEntity: serverProduceCityEntityId,
+            },
+          };
+        }
+        break;
+      }
+      case 'ProduceUnit': {
+        const serverProduceUnitCityEntityId = entityIdMap.get(intent.payload.cityEntity);
+        if (serverProduceUnitCityEntityId !== undefined) {
+          return {
+            ...intent,
+            payload: {
+              ...intent.payload,
+              cityEntity: serverProduceUnitCityEntityId,
+            },
+          };
+        }
+        break;
+      }
       // Other intents don't need translation
     }
     

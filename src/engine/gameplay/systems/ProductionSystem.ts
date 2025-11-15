@@ -152,6 +152,7 @@ export class ProductionSystem extends System {
         { tx: transform.tx, ty: transform.ty },
         cityEntity,
         this.gameScene,
+        false, // ProductionSystem is for single-player queue completion, population changes allowed
       );
       if (building) {
         logger.debug(`Building ${buildingType} placed at city center (${transform.tx}, ${transform.ty})`);
@@ -179,6 +180,7 @@ export class ProductionSystem extends System {
           tile,
           cityEntity,
           this.gameScene,
+          false, // ProductionSystem is for single-player queue completion, population changes allowed
         );
         if (building) {
           logger.debug(`Building ${buildingType} placed at (${tile.tx}, ${tile.ty})`);

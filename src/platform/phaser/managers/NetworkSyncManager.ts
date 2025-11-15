@@ -57,6 +57,14 @@ export class NetworkSyncManager {
         return;
       }
 
+      // Skip BuildBuilding actions from other players - buildings come via full state sync
+      // BuildBuilding intents from server are informational and buildings should already exist in state
+      if (intent.type === 'BuildBuilding' && this.gameState.isMultiplayer) {
+        // Buildings from other players should come through full state sync, not intent queue
+        // This prevents duplicate processing and ensures server is authoritative
+        return;
+      }
+
       // For MoveTo actions from other players, apply them directly to update positions
       if (intent.type === 'MoveTo' && this.gameState.isMultiplayer) {
         const serverEntityId = intent.payload.entity;
