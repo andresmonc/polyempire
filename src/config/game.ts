@@ -51,8 +51,10 @@ export const RESOURCES = {
   TILES_PER_POPULATION: 1, // How many tiles each population point can work
   // City base yields (yields from the city tile itself)
   CITY_BASE_FOOD: 2, // Base food from city center
-  CITY_BASE_PRODUCTION: 1, // Base production from city center
+  CITY_BASE_PRODUCTION: 0, // Base production from city center
   CITY_BASE_GOLD: 0, // Base gold from city center
+  // Production per citizen
+  PRODUCTION_PER_CITIZEN: 2, // Production points each citizen contributes per turn
   // Food required for city growth
   FOOD_PER_POPULATION: 20, // Food needed per population point (for growth)
 };

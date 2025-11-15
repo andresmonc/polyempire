@@ -53,6 +53,9 @@ export class YieldSystem extends System {
       yields.food += RESOURCES.CITY_BASE_FOOD;
       yields.production += RESOURCES.CITY_BASE_PRODUCTION;
       yields.gold += RESOURCES.CITY_BASE_GOLD;
+      
+      // Each citizen contributes Production Points per turn
+      yields.production += city.population * RESOURCES.PRODUCTION_PER_CITIZEN;
 
       resources.add(yields.food, yields.production, yields.gold);
     }
@@ -131,7 +134,7 @@ export class YieldSystem extends System {
           ty,
           yields: {
             food: terrain.yields.food || 0,
-            production: terrain.yields.production || 0,
+            production: terrain.yields.prod || 0,
             gold: terrain.yields.gold || 0,
           },
         });
