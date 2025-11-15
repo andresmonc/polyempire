@@ -19,10 +19,12 @@ import Phaser from 'phaser';
 export class ProductionSystem extends System {
   private intents: IntentQueue;
   private events: Phaser.Events.EventEmitter;
-  private unitFactory: UnitFactory;
+  private unitFactory: UnitFactory | null = null;
   private gameScene: Phaser.Scene;
   private mapData: MapData;
   private civilizationProductionSystem: CivilizationProductionSystem;
+  private civilizationRegistry: CivilizationRegistry;
+  private unitSprites: Map<Entity, UnitSprite>;
 
   constructor(
     intents: IntentQueue,
@@ -39,7 +41,16 @@ export class ProductionSystem extends System {
     this.gameScene = gameScene;
     this.mapData = mapData;
     this.civilizationProductionSystem = civilizationProductionSystem;
-    this.unitFactory = new UnitFactory(this.world, gameScene, civilizationRegistry, unitSprites);
+    this.civilizationRegistry = civilizationRegistry;
+    this.unitSprites = unitSprites;
+  }
+
+  private getUnitFactory(): UnitFactory {
+    if (!this.unitFactory) {
+      // Create UnitFactory lazily once world is available
+      this.unitFactory = new UnitFactory(this.world, this.gameScene, this.civilizationRegistry, this.unitSprites);
+    }
+    return this.unitFactory;
   }
 
   update(_dt: number): void {
@@ -193,7 +204,7 @@ export class ProductionSystem extends System {
     }
 
     const civId = civilization?.civId || DEFAULT_CIVILIZATION_ID;
-    const unit = this.unitFactory.createUnit(
+    const unit = this.getUnitFactory().createUnit(
       unitType,
       { tx: transform.tx, ty: transform.ty },
       owner.playerId,

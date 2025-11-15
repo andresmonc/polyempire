@@ -21,7 +21,9 @@ export class ProduceUnitSystem extends System {
   private gameScene: Phaser.Scene;
   private gameState: GameState;
   private civilizationProductionSystem: CivilizationProductionSystem;
-  private unitFactory: UnitFactory;
+  private civilizationRegistry: CivilizationRegistry;
+  private unitSprites: Map<Entity, UnitSprite>;
+  private unitFactory: UnitFactory | null = null;
 
   constructor(
     intents: IntentQueue,
@@ -38,7 +40,16 @@ export class ProduceUnitSystem extends System {
     this.gameScene = gameScene;
     this.gameState = gameState;
     this.civilizationProductionSystem = civilizationProductionSystem;
-    this.unitFactory = new UnitFactory(this.world, gameScene, civilizationRegistry, unitSprites);
+    this.civilizationRegistry = civilizationRegistry;
+    this.unitSprites = unitSprites;
+  }
+
+  private getUnitFactory(): UnitFactory {
+    if (!this.unitFactory) {
+      // Create UnitFactory lazily once world is available
+      this.unitFactory = new UnitFactory(this.world, this.gameScene, this.civilizationRegistry, this.unitSprites);
+    }
+    return this.unitFactory;
   }
 
   update(_dt: number): void {
@@ -107,7 +118,7 @@ export class ProduceUnitSystem extends System {
       }
 
       // Create unit immediately
-      const unit = this.unitFactory.createUnit(
+      const unit = this.getUnitFactory().createUnit(
         unitType,
         { tx: transform.tx, ty: transform.ty },
         owner.playerId,
