@@ -381,14 +381,6 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
     }
   };
 
-  const handleProduceBuilding = (buildingType: string) => {
-    if (gameState?.selectedEntity !== null) {
-      intentQueue?.push({
-        type: 'ProduceBuilding',
-        payload: { cityEntity: gameState.selectedEntity, buildingType },
-      });
-    }
-  };
 
   if (!gameState) {
     return null; // Don't render anything until the game is ready
@@ -617,39 +609,6 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
               </div>
             </div>
 
-            <div style={{ marginTop: '10px' }}>
-              <strong>Produce Building:</strong>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', marginTop: '5px' }}>
-                {(() => {
-                  // Get buildings data from game scene
-                  const gameScene = game.scene.getScene('GameScene');
-                  if (!gameScene || !('cache' in gameScene)) return null;
-                  
-                  try {
-                    const buildingsData = (gameScene as any).cache.json.get('buildings');
-                    if (!buildingsData) return null;
-                    
-                    return Object.entries(buildingsData).map(([buildingType, building]: [string, any]) => {
-                      const terrainReq = building.terrainRequirements?.length > 0
-                        ? ` (${building.terrainRequirements.join(', ')})`
-                        : '';
-                      return (
-                        <button
-                          key={buildingType}
-                          style={{ ...buttonStyle, fontSize: '11px', padding: '5px 10px' }}
-                          onClick={() => handleProduceBuilding(buildingType)}
-                          title={building.description || building.name}
-                        >
-                          {building.name} ({building.productionCost}{terrainReq})
-                        </button>
-                      );
-                    });
-                  } catch (error) {
-                    return null;
-                  }
-                })()}
-              </div>
-            </div>
           </div>
         )}
 
