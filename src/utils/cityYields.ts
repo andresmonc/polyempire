@@ -9,7 +9,6 @@ import { CityBorders } from './cityBorders';
  * Includes yields from worked tiles, base city yields, and building bonuses.
  */
 export interface CityYields {
-  food: number;
   production: number;
   gold: number;
 }
@@ -28,22 +27,19 @@ export class CityYieldsCalculator {
     
     if (!city || !transform) return null;
 
-    const yields: CityYields = { food: 0, production: 0, gold: 0 };
+    const yields: CityYields = { production: 0, gold: 0 };
 
     // 1. Calculate yields from worked tiles
     const tileYields = this.calculateTileYields(city, transform, mapData);
-    yields.food += tileYields.food;
     yields.production += tileYields.production;
     yields.gold += tileYields.gold;
 
     // 2. Add base city yields
-    yields.food += RESOURCES.CITY_BASE_FOOD;
     yields.production += RESOURCES.CITY_BASE_PRODUCTION;
     yields.gold += RESOURCES.CITY_BASE_GOLD;
 
     // 3. Add building yields
     const buildingYields = this.calculateBuildingYields(world, mapData, cityEntity);
-    yields.food += buildingYields.food;
     yields.production += buildingYields.production;
     yields.gold += buildingYields.gold;
 
@@ -58,13 +54,13 @@ export class CityYieldsCalculator {
     transform: Components.TransformTile,
     mapData: MapData,
   ): CityYields {
-    const yields: CityYields = { food: 0, production: 0, gold: 0 };
+    const yields: CityYields = { production: 0, gold: 0 };
     const workableTiles = this.getWorkableTiles(city, transform, mapData);
     
-    // Sort tiles by total yield (food + production + gold) descending
+    // Sort tiles by total yield (production + gold) descending
     const sortedTiles = workableTiles.sort((a, b) => {
-      const aTotal = a.yields.food + a.yields.production + a.yields.gold;
-      const bTotal = b.yields.food + b.yields.production + b.yields.gold;
+      const aTotal = a.yields.production + a.yields.gold;
+      const bTotal = b.yields.production + b.yields.gold;
       return bTotal - aTotal;
     });
 
@@ -72,7 +68,6 @@ export class CityYieldsCalculator {
     const tilesToWork = Math.min(city.population, sortedTiles.length);
     for (let i = 0; i < tilesToWork; i++) {
       const tile = sortedTiles[i];
-      yields.food += tile.yields.food;
       yields.production += tile.yields.production;
       yields.gold += tile.yields.gold;
     }
@@ -116,8 +111,7 @@ export class CityYieldsCalculator {
           tx,
           ty,
           yields: {
-            food: terrain.yields.food || 0,
-            production: terrain.yields.production || 0,
+            production: terrain.yields.prod || 0,
             gold: terrain.yields.gold || 0,
           },
         });
@@ -135,7 +129,7 @@ export class CityYieldsCalculator {
     mapData: MapData,
     cityEntity: Entity,
   ): CityYields {
-    const yields: CityYields = { food: 0, production: 0, gold: 0 };
+    const yields: CityYields = { production: 0, gold: 0 };
     
     // Get all buildings
     const buildings = world.view(Components.Building, Components.TransformTile);
@@ -152,7 +146,6 @@ export class CityYieldsCalculator {
       // Check if building is within this city's borders
       const tileKey = `${buildingPos.tx},${buildingPos.ty}`;
       if (cityTileSet.has(tileKey)) {
-        if (building.yields.food) yields.food += building.yields.food;
         if (building.yields.production) yields.production += building.yields.production;
         if (building.yields.gold) yields.gold += building.yields.gold;
       }
@@ -169,7 +162,7 @@ export class CityYieldsCalculator {
     mapData: MapData,
     playerId: number = 0,
   ): CityYields {
-    const totalYields: CityYields = { food: 0, production: 0, gold: 0 };
+    const totalYields: CityYields = { production: 0, gold: 0 };
 
     // Get all cities owned by this player
     const cities = world.view(Components.City, Components.TransformTile, Components.Owner);
@@ -180,7 +173,6 @@ export class CityYieldsCalculator {
 
       const cityYields = this.calculateYields(world, mapData, cityEntity);
       if (cityYields) {
-        totalYields.food += cityYields.food;
         totalYields.production += cityYields.production;
         totalYields.gold += cityYields.gold;
       }

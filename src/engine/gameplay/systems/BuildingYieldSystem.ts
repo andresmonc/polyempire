@@ -60,14 +60,12 @@ export class BuildingYieldSystem extends System {
       
       if (!resources || !city) continue;
 
-      let totalFood = 0;
       let totalProduction = 0;
       let totalGold = 0;
       let totalPopulationGrowth = 0;
 
       for (const { building } of cityBuildings) {
         // Add yields
-        if (building.yields.food) totalFood += building.yields.food;
         if (building.yields.production) totalProduction += building.yields.production;
         if (building.yields.gold) totalGold += building.yields.gold;
         
@@ -77,8 +75,8 @@ export class BuildingYieldSystem extends System {
         }
       }
 
-      if (totalFood > 0 || totalProduction > 0 || totalGold > 0) {
-        resources.add(totalFood, totalProduction, totalGold);
+      if (totalProduction > 0 || totalGold > 0) {
+        resources.add(totalProduction, totalGold);
       }
 
       if (totalPopulationGrowth > 0) {

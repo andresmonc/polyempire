@@ -132,7 +132,6 @@ export class City {
  */
 export class Resources {
   constructor(
-    public food: number = 0, // Food stockpile
     public production: number = 0, // Production stockpile
     public gold: number = 0, // Gold stockpile
   ) {}
@@ -140,8 +139,7 @@ export class Resources {
   /**
    * Adds resources to the stockpile.
    */
-  add(food: number, production: number, gold: number): void {
-    this.food += food;
+  add(production: number, gold: number): void {
     this.production += production;
     this.gold += gold;
   }
@@ -149,9 +147,8 @@ export class Resources {
   /**
    * Checks if the city has enough resources for a cost.
    */
-  canAfford(cost: { food?: number; production?: number; gold?: number }): boolean {
+  canAfford(cost: { production?: number; gold?: number }): boolean {
     return (
-      (cost.food === undefined || this.food >= cost.food) &&
       (cost.production === undefined || this.production >= cost.production) &&
       (cost.gold === undefined || this.gold >= cost.gold)
     );
@@ -160,8 +157,7 @@ export class Resources {
   /**
    * Spends resources (assumes canAfford was checked first).
    */
-  spend(cost: { food?: number; production?: number; gold?: number }): void {
-    if (cost.food !== undefined) this.food -= cost.food;
+  spend(cost: { production?: number; gold?: number }): void {
     if (cost.production !== undefined) this.production -= cost.production;
     if (cost.gold !== undefined) this.gold -= cost.gold;
   }

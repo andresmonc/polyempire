@@ -147,7 +147,7 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
   const [selectedTile, setSelectedTile] = useState<Terrain | null>(null);
   
   // --- Civilization Total Yields ---
-  const [totalYields, setTotalYields] = useState<CityYields>({ food: 0, production: 0, gold: 0 });
+  const [totalYields, setTotalYields] = useState<CityYields>({ production: 0, gold: 0 });
   const [availableProduction, setAvailableProduction] = useState<number>(0);
   const [startingProductionPerTurn, setStartingProductionPerTurn] = useState<number>(0);
 
@@ -404,10 +404,6 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
           </div>
         )}
         <div style={yieldItemStyle}>
-          <span style={yieldLabelStyle}>Food:</span>
-          <span style={yieldValueStyle}>+{totalYields.food.toFixed(1)}</span>
-        </div>
-        <div style={yieldItemStyle}>
           <span style={yieldLabelStyle}>Production:</span>
           <span style={yieldValueStyle}>+{(totalYields.production + startingProductionPerTurn).toFixed(1)}</span>
         </div>
@@ -519,7 +515,6 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
             {selectedCityResources && (
               <div style={{ marginTop: '10px' }}>
                 <strong>Resources:</strong>
-                <div>Food: {selectedCityResources.food.toFixed(1)}</div>
                 <div>Production: {selectedCityResources.production.toFixed(1)}</div>
                 <div>Gold: {selectedCityResources.gold.toFixed(1)}</div>
               </div>
@@ -528,7 +523,6 @@ export const HUD: React.FC<HUDProps> = ({ game }) => {
             {selectedCityYields && (
               <div style={{ marginTop: '10px' }}>
                 <strong>Per Turn:</strong>
-                <div>Food: +{selectedCityYields.food.toFixed(1)}</div>
                 <div>Production: +{selectedCityYields.production.toFixed(1)}</div>
                 <div>Gold: +{selectedCityYields.gold.toFixed(1)}</div>
               </div>

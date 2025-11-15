@@ -50,14 +50,13 @@ export class YieldSystem extends System {
       const yields = this.calculateYields(city, transform);
       
       // Add base city yields
-      yields.food += RESOURCES.CITY_BASE_FOOD;
       yields.production += RESOURCES.CITY_BASE_PRODUCTION;
       yields.gold += RESOURCES.CITY_BASE_GOLD;
       
       // Each citizen contributes Production Points per turn
       yields.production += city.population * RESOURCES.PRODUCTION_PER_CITIZEN;
 
-      resources.add(yields.food, yields.production, yields.gold);
+      resources.add(yields.production, yields.gold);
     }
 
     this.lastProcessedTurn = this.gameState.turn;
@@ -70,18 +69,17 @@ export class YieldSystem extends System {
    * Each population point can work one tile within the city's range.
    */
   private calculateYields(city: Components.City, transform: Components.TransformTile): {
-    food: number;
     production: number;
     gold: number;
   } {
-    const yields = { food: 0, production: 0, gold: 0 };
+    const yields = { production: 0, gold: 0 };
     const workableTiles = this.getWorkableTiles(city, transform);
     
-    // Sort tiles by total yield (food + production + gold) descending
+    // Sort tiles by total yield (production + gold) descending
     // This simulates the city working the best tiles first
     const sortedTiles = workableTiles.sort((a, b) => {
-      const aTotal = a.yields.food + a.yields.production + a.yields.gold;
-      const bTotal = b.yields.food + b.yields.production + b.yields.gold;
+      const aTotal = a.yields.production + a.yields.gold;
+      const bTotal = b.yields.production + b.yields.gold;
       return bTotal - aTotal;
     });
 
@@ -89,7 +87,6 @@ export class YieldSystem extends System {
     const tilesToWork = Math.min(city.population, sortedTiles.length);
     for (let i = 0; i < tilesToWork; i++) {
       const tile = sortedTiles[i];
-      yields.food += tile.yields.food;
       yields.production += tile.yields.production;
       yields.gold += tile.yields.gold;
     }
@@ -104,11 +101,11 @@ export class YieldSystem extends System {
   private getWorkableTiles(
     city: Components.City,
     transform: Components.TransformTile,
-  ): Array<{ tx: number; ty: number; yields: { food: number; production: number; gold: number } }> {
+  ): Array<{ tx: number; ty: number; yields: { production: number; gold: number } }> {
     const workableTiles: Array<{
       tx: number;
       ty: number;
-      yields: { food: number; production: number; gold: number };
+      yields: { production: number; gold: number };
     }> = [];
     const sightRange = city.getSightRange();
     const dimensions = this.mapData.getDimensions();
@@ -133,7 +130,6 @@ export class YieldSystem extends System {
           tx,
           ty,
           yields: {
-            food: terrain.yields.food || 0,
             production: terrain.yields.prod || 0,
             gold: terrain.yields.gold || 0,
           },
