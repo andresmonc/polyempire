@@ -29,8 +29,8 @@ router.post('/', async (req: Request<{}, CreateGameResponse, CreateGameRequest>,
       name,
       playerName,
       civilizationId,
-      req.body.mapWidth || 20, // Default to 20 if not provided (matches map.sample.json)
-      req.body.mapHeight || 12, // Default to 12 if not provided
+      req.body.mapWidth,
+      req.body.mapHeight,
     );
 
     res.json({
@@ -211,7 +211,7 @@ router.post('/:id/war', async (req: Request<{ id: string }>, res: Response) => {
 
     await gameSessionService.declareWar(id, player1Id, player2Id);
     const game = await gameSessionService.getGame(id);
-    
+
     res.json({
       success: true,
       game: game?.getExtendedInfo(),
@@ -236,7 +236,7 @@ router.delete('/:id/war', async (req: Request<{ id: string }>, res: Response) =>
 
     await gameSessionService.endWar(id, player1Id, player2Id);
     const game = await gameSessionService.getGame(id);
-    
+
     res.json({
       success: true,
       game: game?.getExtendedInfo(),
